@@ -1,17 +1,20 @@
+import os
 import aiomysql
+from dotenv import load_dotenv
+load_dotenv()
 
 
-class MySQL():
+class MySQL:
     def __init__(self, client):
         self.client = client
 
     async def init(self):
         if self.client.pool is None:
             self.client.pool = await aiomysql.create_pool(
-                host="HOST_NAME",
-                user="DB_USER",
-                password="DB_PASS",
-                db="DB_NAME",
+                host=os.getenv("host"),
+                user=os.getenv("user"),
+                password=os.getenv("password"),
+                db=os.getenv("database"),
                 cursorclass=aiomysql.DictCursor,
                 autocommit=True
             )
