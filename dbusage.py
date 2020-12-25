@@ -17,6 +17,26 @@ logger.addHandler(handler)
 client = commands.Bot(command_prefix="!", intents=Intents.all())
 
 
+# action_categories = [
+#     "enter channel", "exit channel", "start screenshare", "end screenshare", "start video", "end video", "start voice",
+#     "end voice", "start timer", "end timer"
+# ]
+
+def get_utctime():
+    from datetime import datetime
+    now = datetime.now()
+    formatted_date = now.strftime('%Y-%m-%d %H:%M:%S.%f')
+    return formatted_date
+
+
+async def get_User_id(discord_id):
+    select_User_id = f"""
+        SELECT id from User WHERE discord_user_id = {discord_id} LIMIT 1
+    """
+    User_id = await client.sql.query(select_User_id)
+    return User_id[0]["id"]
+
+
 @client.event
 async def on_ready():
     if client.pool is None:
@@ -35,19 +55,19 @@ async def on_ready():
 
 @client.event
 async def on_voice_state_update(member, before, after):
-    response = await client.sql.query("show tables;")
-    print(response)
-    print()
-    print(member, before, after)
+    User_id = await get_User_id(member.id)
+    insert_action = f"""
+        INSERT INTO Action (User_id, category, detail, creation_time)
+        VALUES ({User_id}, 'exit channel', '{before.channel.id}', '{get_utctime()}');
+    """
+    print(insert_action)
+    response = await client.sql.query(insert_action)
+    if response:
+        print(response)
 
 
 @client.event
 async def on_member_join(member):
-    guild = member.guild
-    if guild.system_channel is not None:
-        to_send = 'Welcome {0.mention} to {1.name}!'.format(member, guild)
-        await guild.system_channel.send(to_send)
-    print(member)
     insert_new_member = f"""
         INSERT INTO User (discord_user_id)
         VALUES ({member.id});
@@ -57,7 +77,7 @@ async def on_member_join(member):
     if response:
         print(response)
 
+
 client.pool = None
 client.sql = dbm.MySQL(client)
 client.run(os.getenv('bot_token'))
-

@@ -21,11 +21,11 @@ try:
 
         create_action = """
             CREATE TABLE IF NOT EXISTS Action(
-               id int NOT NULL PRIMARY KEY,
+               id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
                User_id INT NOT NULL,
                category VARCHAR(32) NOT NULL,
                detail VARCHAR(32),
-               creation_time DATETIME,
+               creation_time DATETIME(6),
                FOREIGN KEY(User_id) REFERENCES User(id)
             ); 
         """
