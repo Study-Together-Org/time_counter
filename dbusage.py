@@ -56,14 +56,16 @@ async def on_ready():
 @client.event
 async def on_voice_state_update(member, before, after):
     User_id = await get_User_id(member.id)
-    insert_action = f"""
-        INSERT INTO Action (User_id, category, detail, creation_time)
-        VALUES ({User_id}, 'exit channel', '{before.channel.id}', '{get_utctime()}');
-    """
-    print(insert_action)
-    response = await client.sql.query(insert_action)
-    if response:
-        print(response)
+    for action_name, channel in [("exit channel", before.channel), ("enter channel", after.channel)]:
+        if channel:
+            insert_action = f"""
+                INSERT INTO Action (User_id, category, detail, creation_time)
+                VALUES ({User_id}, '{action_name}', '{channel.id}', '{get_utctime()}');
+            """
+            print(insert_action)
+            response = await client.sql.query(insert_action)
+            if response:
+                print(response)
 
 
 @client.event
