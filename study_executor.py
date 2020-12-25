@@ -1,0 +1,212 @@
+import bisect
+from discord.ext import commands
+import os
+import discord
+from discord import Intents
+import logging
+import dbmanagement as dbm
+from dotenv import load_dotenv
+import hjson
+import asyncio
+from datetime import datetime, timedelta
+
+load_dotenv("dev.env")
+with open("roles.json") as f:
+    roles = hjson.load(f)
+
+# rolesID = [roles[i]['id'] for i in roles]
+role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) for role_name, role_info in
+                            roles.items()}
+role_names = list(roles.keys())
+logger = logging.getLogger('discord')
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)
+guildID = int(os.getenv("guildID"))
+
+
+# action_categories = [
+#     "enter channel", "exit channel", "start screenshare", "end screenshare", "start video", "end video", "start voice",
+#     "end voice", "start timer", "end timer"
+# ]
+
+def get_utctime():
+    now = datetime.utcnow()
+    return now
+
+
+def get_month_start():
+    given_date = datetime.today().date()
+    first_day_of_month = given_date - timedelta(days=int(given_date.strftime("%d")) - 1)
+    return first_day_of_month
+
+
+def round_num(num):
+    return round(num, 1)
+
+
+def calc_total_time(data):
+    if not data:
+        return 0
+
+    total_time = timedelta(0)
+    start_idx = 0
+    end_idx = len(data) - 1
+
+    if data[0]["category"] == "exit channel":
+        total_time += data[0]["creation_time"] - get_month_start()
+        start_idx = 1
+
+    if data[-1]["category"] == "enter channel":
+        total_time += get_utctime() - data[-1]["creation_time"]
+        end_idx -= 1
+
+    for idx in range(start_idx, end_idx + 1, 2):
+        # record = data[idx]
+        # if record["category"] == "exit channel":
+        # elif record["category"] == "enter channel":
+        total_time += data[idx + 1]["creation_time"] - data[idx]["creation_time"]
+
+    total_time = round_num(total_time.total_seconds() / 3600)
+    return total_time
+
+
+class Study(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.guild = None
+        self.role_objs = None
+        # self.fetch()
+
+    def get_role(self, user):
+        # role_id = rolesID[bisect.bisect_left(list(role_name_to_begin_hours.values()), hours_cur_month)]
+        user_study_roles = list(set(user.roles).intersection(set(self.role_name_to_obj.values())))
+        role = None
+        next_role = None
+
+        if user_study_roles:
+            role = user_study_roles[0]
+            if role.id != self.role_name_to_obj[role_names[-1]].id:
+                # If user has not reached the end
+                next_role = self.role_name_to_obj[role_names[role_names.index(role.name) + 1]]
+        else:
+            next_role = self.role_name_to_obj[role_names[0]]
+
+        return role, next_role
+
+    async def fetch(self):
+        if not self.guild:
+            self.guild = self.bot.get_guild(guildID)
+        self.role_name_to_obj = {role.name: role for role in self.guild.roles}
+        # self.role_ids = self.guild.get_role()
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        if self.bot.pool is None:
+            await self.bot.sql.init()
+
+        print('We have logged in as {0.user}'.format(self.bot))
+        # game = discord.Game(f"{self.bot.month} statistics")
+        # await self.bot.change_presence(status=discord.Status.online, activity=game)
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        if before.channel == after.channel:
+            return
+
+        User_id = await self.get_User_id(member.id)
+
+        for action_name, channel in [("exit channel", before.channel), ("enter channel", after.channel)]:
+            if channel:
+                insert_action = f"""
+                    INSERT INTO Action (User_id, category, detail, creation_time)
+                    VALUES ({User_id}, '{action_name}', '{channel.id}', '{get_utctime()}');
+                """
+                print(insert_action)
+                response = await self.bot.sql.query(insert_action)
+                if response:
+                    print(response)
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        insert_new_member = f"""
+            INSERT INTO User (discord_user_id)
+            VALUES ({member.id});
+        """
+
+        response = await self.bot.sql.query(insert_new_member)
+        if response:
+            print(response)
+
+    async def get_User_id(self, discord_id):
+        select_User_id = f"""
+            SELECT id from User WHERE discord_user_id = {discord_id}
+        """
+        User_id = await self.bot.sql.query(select_User_id)
+        return User_id[0]["id"]
+
+    async def get_time_cur_month(self, User_id):
+        insert_new_member = f"""
+            SELECT category, creation_time FROM Action
+            WHERE User_id = {User_id} AND (category = 'enter channel' OR category = 'exit channel')
+        """
+        print(insert_new_member)
+        response = await self.bot.sql.query(insert_new_member)
+        total_time = calc_total_time(response)
+        return total_time
+
+    @commands.command(aliases=["rank"])
+    async def p(self, ctx, user: discord.Member = None):
+        # if the user has not specified someone else
+        if not user:
+            user = ctx.author
+
+        if user.bot:
+            await ctx.send("Bots don't study ;)")
+            return
+
+        name = user.name + "#" + user.discriminator
+        User_id = await self.get_User_id(user.id)
+        hours_cur_month = await self.get_time_cur_month(User_id)
+        if not self.role_objs:
+            await self.fetch()
+
+        role, next_role = self.get_role(user)
+        next_time = None
+
+        if not hours_cur_month:
+            # New member
+            # next_time = list(role_name_to_begin_hours.values())[1]
+            next_time = role_name_to_begin_hours[next_role] - hours_cur_month
+            next_time = round(next_time, 1)
+
+        text = f"""
+        **User:** ``{name}``\n
+        __Study role__ ({get_utctime().strftime("%B")})
+        **Current study role:** {role.mention if role else "No Role"}
+        **Next study role:** {next_role.mention if next_role else "``👑 Highest rank reached``"}
+        **Role promotion in:** ``{(str(next_time) + 'h') if next_time else list(role_name_to_begin_hours.values())[1]}``
+        **Role rank:** ``{'👑 ' if role and role_names.index(role.name) + 1 == {len(roles)} else ''}{role_names.index(role.name) + 1 if role else '0'}/{len(roles)}``
+        """
+
+        emb = discord.Embed(title=":coffee: Personal rank statistics", description=text)
+        await ctx.send(embed=emb)
+
+
+def setup(bot):
+    bot.add_cog(Study(bot))
+
+    # async def botSpam(ctx):
+    #     if ctx.channel.id in [666352633342197760, 695434541233602621, 715581625425068053, 699007476686651613,
+    #                           674590052390535168, 738091719073202327]:
+    #         return True
+    #     else:
+    #         m = await ctx.send(
+    #             f"{ctx.author.mention} Please use that command in <#666352633342197760> or <#695434541233602621>.")
+    #         await asyncio.sleep(10)
+    #         await ctx.message.delete()
+    #         await m.delete()
+    #         return False
+    #
+    # bot.add_check(botSpam)
