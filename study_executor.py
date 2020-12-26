@@ -178,6 +178,55 @@ class Study(commands.Cog):
         emb = discord.Embed(title=":coffee: Personal rank statistics", description=text)
         await ctx.send(embed=emb)
 
+    @commands.command()
+    async def me(self, ctx, user: discord.Member = None):
+        if not user:
+            user = ctx.author
+
+        if user.bot:
+            await ctx.send("Bots don't study ;)")
+            return
+
+        name = user.name + "#" + user.discriminator
+
+        monthly_row = await get_monthly_row(name)
+        weekly_row = await get_weekly_row(name)
+        daily_row = await get_daily_row(name)
+        overall_row = await get_overall_row(name)
+        if monthly_row == None:
+            monthly_row = ["", "", "0"]
+        place_total = ("#" + overall_row[0] if overall_row[0] else "No data")
+        place_monthly = ("#" + monthly_row[0] if monthly_row[0] else "No data")
+        place_weekly = ("#" + weekly_row[0] if weekly_row[0] else "No data")
+        place_daily = ("#" + daily_row[0] if daily_row[0] else "No data")
+
+        min_total = (
+            str(round(int(overall_row[2].replace(',', '')) / 60, 1)) + " h" if overall_row[2] else "No data").ljust(9)
+        min_monthly = (
+            str(round(int(monthly_row[2].replace(',', '')) / 60, 1)) + " h" if monthly_row[2] else "No data").ljust(9)
+        min_weekly = (
+            str(round(int(weekly_row[2].replace(',', '')) / 60, 1)) + " h" if weekly_row[2] else "No data").ljust(9)
+        min_daily = (
+            str(round(int(daily_row[2].replace(',', '')) / 60, 1)) + " h" if daily_row[2] else "No data").ljust(9)
+
+        average = str(round(float(min_monthly.strip()[:-1]) / datetime.datetime.utcnow().day,
+                            1)) + " h" if min_monthly != "No data" else "No data"
+
+        streaks = await get_streaks(name)
+        currentStreak = (str(streaks[1]) if streaks else "0")
+        longestStreak = (str(streaks[2]) if streaks else "0")
+        currentStreak += " day" + ("s" if int(currentStreak) != 1 else "")
+        longestStreak += " day" + ("s" if int(longestStreak) != 1 else "")
+
+        emb = discord.Embed(
+            description=f"```css\nPersonal study statistics```\n```glsl\nTimeframe   Hours    Place\n\nPast day:   {min_daily}{place_daily}\nPast week:  {min_weekly}{place_weekly}\nMonthly:    {min_monthly}{place_monthly}\nAll-time:   {min_total}{place_total}\n\nAverage/day ({self.bot.month}): {average}\n\nCurrent study streak: {currentStreak}\nLongest study streak: {longestStreak}```")
+        foot = name
+        if self.client.get_guild(self.client.guild_id).get_role(685967088170696715) in self.client.get_guild(
+            self.client.guild_id).get_member(user.id).roles:
+            foot = "⭐ " + foot
+        emb.set_footer(text=foot, icon_url=user.avatar_url)
+        await ctx.send(embed=emb)
+
 
 def setup(bot):
     bot.add_cog(Study(bot))
