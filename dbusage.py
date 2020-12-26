@@ -14,3 +14,5 @@ client.load_extension('study_executor')
 client.pool = None
 client.sql = dbm.MySQL(client)
 client.run(os.getenv('bot_token'))
+
+print("Done")

@@ -1,11 +1,11 @@
 import logging
 import os
-from datetime import datetime, timedelta
 
 import discord
 import hjson
 from discord.ext import commands
 from dotenv import load_dotenv
+import utilities
 
 load_dotenv("dev.env")
 logger = logging.getLogger('discord')
@@ -21,44 +21,6 @@ role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) f
                             roles.items()}
 role_names = list(roles.keys())
 guildID = int(os.getenv("guildID"))
-
-
-def get_utctime():
-    now = datetime.utcnow()
-    return now
-
-
-def get_month_start():
-    given_date = datetime.today().date()
-    first_day_of_month = given_date - timedelta(days=int(given_date.strftime("%d")) - 1)
-    return first_day_of_month
-
-
-def round_num(num):
-    return round(num, 1)
-
-
-def calc_total_time(data):
-    if not data:
-        return 0
-
-    total_time = timedelta(0)
-    start_idx = 0
-    end_idx = len(data) - 1
-
-    if data[0]["category"] == "exit channel":
-        total_time += data[0]["creation_time"] - get_month_start()
-        start_idx = 1
-
-    if data[-1]["category"] == "enter channel":
-        total_time += get_utctime() - data[-1]["creation_time"]
-        end_idx -= 1
-
-    for idx in range(start_idx, end_idx + 1, 2):
-        total_time += data[idx + 1]["creation_time"] - data[idx]["creation_time"]
-
-    total_time = round_num(total_time.total_seconds() / 3600)
-    return total_time
 
 
 class Study(commands.Cog):
@@ -92,6 +54,7 @@ class Study(commands.Cog):
         if self.bot.pool is None:
             await self.bot.sql.init()
 
+        await self.fetch()
         print('We have logged in as {0.user}'.format(self.bot))
         # game = discord.Game(f"{self.bot.month} statistics")
         # await self.bot.change_presence(status=discord.Status.online, activity=game)
@@ -133,12 +96,12 @@ class Study(commands.Cog):
         return User_id[0]["id"]
 
     async def get_time_cur_month(self, User_id):
-        insert_new_member = f"""
+        get_cur_month_data_query = f"""
             SELECT category, creation_time FROM Action
             WHERE User_id = {User_id} AND (category = 'enter channel' OR category = 'exit channel')
         """
-        print(insert_new_member)
-        response = await self.bot.sql.query(insert_new_member)
+        print(get_cur_month_data_query)
+        response = await self.bot.sql.query(get_cur_month_data_query)
         total_time = calc_total_time(response)
         return total_time
 
@@ -155,8 +118,6 @@ class Study(commands.Cog):
         name = user.name + "#" + user.discriminator
         User_id = await self.get_User_id(user.id)
         hours_cur_month = await self.get_time_cur_month(User_id)
-        if not self.role_objs:
-            await self.fetch()
 
         role, next_role = self.get_role(user)
         next_time = None
@@ -178,54 +139,91 @@ class Study(commands.Cog):
         emb = discord.Embed(title=":coffee: Personal rank statistics", description=text)
         await ctx.send(embed=emb)
 
-    @commands.command()
-    async def me(self, ctx, user: discord.Member = None):
-        if not user:
-            user = ctx.author
-
-        if user.bot:
-            await ctx.send("Bots don't study ;)")
+    @commands.command(aliases=['top'])
+    async def lb(self, ctx, *, page: int = 1):
+        if page < 1:
+            await ctx.send("You can't look page 0 or a minus number.")
             return
 
-        name = user.name + "#" + user.discriminator
+        data = sheet.range("B3:D" + str(sheet.row_count))
+        size = await get_range_col_size("B3:D" + str(sheet.row_count))
+        r = await get_list_like_before(data, size)
+        data = r
+        start = page * 10 - 10
+        stop = page * 10
+        if start > len(data):
+            await ctx.send("There are not enough pages")
+            return
+        if stop > len(data):
+            stop = len(data)
+        leaderboard = data[start:stop]
+        lb = ''
+        for i in leaderboard:
+            if len(i) != 3:
+                break
+            monthly = str(round(int(i[2].replace(',', '')) / 60, 1)) + "h"
+            lb += f'`{i[0]}.` {i[1][:-5]} {monthly}\n'
+        lb_embed = discord.Embed(title=f'<:check:680427526438649860> Study leaderboard ({self.bot.month})',
+                                 description=lb)
+        lb_embed.set_footer(text=f"Type !lb {page + 1} to see placements {start + 1 + 10}-{stop + 10}")
+        await ctx.send(embed=lb_embed)
 
-        monthly_row = await get_monthly_row(name)
-        weekly_row = await get_weekly_row(name)
-        daily_row = await get_daily_row(name)
-        overall_row = await get_overall_row(name)
-        if monthly_row == None:
-            monthly_row = ["", "", "0"]
-        place_total = ("#" + overall_row[0] if overall_row[0] else "No data")
-        place_monthly = ("#" + monthly_row[0] if monthly_row[0] else "No data")
-        place_weekly = ("#" + weekly_row[0] if weekly_row[0] else "No data")
-        place_daily = ("#" + daily_row[0] if daily_row[0] else "No data")
+    @lb.error
+    async def lb_error(self, ctx, error):
+        if isinstance(error, commands.errors.BadArgument):
+            await ctx.send("You provided a wrong argument, more likely you provide an invalid number for the page.")
+        else:
+            await ctx.send("Unknown error, please contact owner.")
+            print(error)
 
-        min_total = (
-            str(round(int(overall_row[2].replace(',', '')) / 60, 1)) + " h" if overall_row[2] else "No data").ljust(9)
-        min_monthly = (
-            str(round(int(monthly_row[2].replace(',', '')) / 60, 1)) + " h" if monthly_row[2] else "No data").ljust(9)
-        min_weekly = (
-            str(round(int(weekly_row[2].replace(',', '')) / 60, 1)) + " h" if weekly_row[2] else "No data").ljust(9)
-        min_daily = (
-            str(round(int(daily_row[2].replace(',', '')) / 60, 1)) + " h" if daily_row[2] else "No data").ljust(9)
-
-        average = str(round(float(min_monthly.strip()[:-1]) / datetime.datetime.utcnow().day,
-                            1)) + " h" if min_monthly != "No data" else "No data"
-
-        streaks = await get_streaks(name)
-        currentStreak = (str(streaks[1]) if streaks else "0")
-        longestStreak = (str(streaks[2]) if streaks else "0")
-        currentStreak += " day" + ("s" if int(currentStreak) != 1 else "")
-        longestStreak += " day" + ("s" if int(longestStreak) != 1 else "")
-
-        emb = discord.Embed(
-            description=f"```css\nPersonal study statistics```\n```glsl\nTimeframe   Hours    Place\n\nPast day:   {min_daily}{place_daily}\nPast week:  {min_weekly}{place_weekly}\nMonthly:    {min_monthly}{place_monthly}\nAll-time:   {min_total}{place_total}\n\nAverage/day ({self.bot.month}): {average}\n\nCurrent study streak: {currentStreak}\nLongest study streak: {longestStreak}```")
-        foot = name
-        if self.client.get_guild(self.client.guild_id).get_role(685967088170696715) in self.client.get_guild(
-            self.client.guild_id).get_member(user.id).roles:
-            foot = "⭐ " + foot
-        emb.set_footer(text=foot, icon_url=user.avatar_url)
-        await ctx.send(embed=emb)
+    # @commands.command()
+    # async def me(self, ctx, user: discord.Member = None):
+    #     if not user:
+    #         user = ctx.author
+    #
+    #     if user.bot:
+    #         await ctx.send("Bots don't study ;)")
+    #         return
+    #
+    #     name = user.name + "#" + user.discriminator
+    #
+    #     monthly_row = await get_monthly_row(name)
+    #     weekly_row = await get_weekly_row(name)
+    #     daily_row = await get_daily_row(name)
+    #     overall_row = await get_overall_row(name)
+    #     if monthly_row == None:
+    #         monthly_row = ["", "", "0"]
+    #     place_total = ("#" + overall_row[0] if overall_row[0] else "No data")
+    #     place_monthly = ("#" + monthly_row[0] if monthly_row[0] else "No data")
+    #     place_weekly = ("#" + weekly_row[0] if weekly_row[0] else "No data")
+    #     place_daily = ("#" + daily_row[0] if daily_row[0] else "No data")
+    #
+    #     min_total = (
+    #         str(round(int(overall_row[2].replace(',', '')) / 60, 1)) + " h" if overall_row[2] else "No data").ljust(9)
+    #     min_monthly = (
+    #         str(round(int(monthly_row[2].replace(',', '')) / 60, 1)) + " h" if monthly_row[2] else "No data").ljust(9)
+    #     min_weekly = (
+    #         str(round(int(weekly_row[2].replace(',', '')) / 60, 1)) + " h" if weekly_row[2] else "No data").ljust(9)
+    #     min_daily = (
+    #         str(round(int(daily_row[2].replace(',', '')) / 60, 1)) + " h" if daily_row[2] else "No data").ljust(9)
+    #
+    #     average = str(round(float(min_monthly.strip()[:-1]) / datetime.datetime.utcnow().day,
+    #                         1)) + " h" if min_monthly != "No data" else "No data"
+    #
+    #     streaks = await get_streaks(name)
+    #     currentStreak = (str(streaks[1]) if streaks else "0")
+    #     longestStreak = (str(streaks[2]) if streaks else "0")
+    #     currentStreak += " day" + ("s" if int(currentStreak) != 1 else "")
+    #     longestStreak += " day" + ("s" if int(longestStreak) != 1 else "")
+    #
+    #     emb = discord.Embed(
+    #         description=f"```css\nPersonal study statistics```\n```glsl\nTimeframe   Hours    Place\n\nPast day:   {min_daily}{place_daily}\nPast week:  {min_weekly}{place_weekly}\nMonthly:    {min_monthly}{place_monthly}\nAll-time:   {min_total}{place_total}\n\nAverage/day ({self.bot.month}): {average}\n\nCurrent study streak: {currentStreak}\nLongest study streak: {longestStreak}```")
+    #     foot = name
+    #     if self.client.get_guild(self.client.guild_id).get_role(685967088170696715) in self.client.get_guild(
+    #         self.client.guild_id).get_member(user.id).roles:
+    #         foot = "⭐ " + foot
+    #     emb.set_footer(text=foot, icon_url=user.avatar_url)
+    #     await ctx.send(embed=emb)
 
 
 def setup(bot):
