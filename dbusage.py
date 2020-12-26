@@ -1,12 +1,10 @@
-import bisect
-from discord.ext import commands
 import os
-import discord
+
 from discord import Intents
-import logging
-import dbmanagement as dbm
+from discord.ext import commands
 from dotenv import load_dotenv
-import hjson
+
+import dbmanagement as dbm
 
 load_dotenv("dev.env")
 
