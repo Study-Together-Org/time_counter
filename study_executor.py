@@ -11,6 +11,13 @@ import asyncio
 from datetime import datetime, timedelta
 
 load_dotenv("dev.env")
+logger = logging.getLogger('discord')
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)
+
+
 with open("roles.json") as f:
     roles = hjson.load(f)
 
@@ -18,13 +25,7 @@ with open("roles.json") as f:
 role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) for role_name, role_info in
                             roles.items()}
 role_names = list(roles.keys())
-logger = logging.getLogger('discord')
-logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-logger.addHandler(handler)
 guildID = int(os.getenv("guildID"))
-
 
 # action_categories = [
 #     "enter channel", "exit channel", "start screenshare", "end screenshare", "start video", "end video", "start voice",
@@ -63,9 +64,6 @@ def calc_total_time(data):
         end_idx -= 1
 
     for idx in range(start_idx, end_idx + 1, 2):
-        # record = data[idx]
-        # if record["category"] == "exit channel":
-        # elif record["category"] == "enter channel":
         total_time += data[idx + 1]["creation_time"] - data[idx]["creation_time"]
 
     total_time = round_num(total_time.total_seconds() / 3600)
@@ -77,7 +75,6 @@ class Study(commands.Cog):
         self.bot = bot
         self.guild = None
         self.role_objs = None
-        # self.fetch()
 
     def get_role(self, user):
         # role_id = rolesID[bisect.bisect_left(list(role_name_to_begin_hours.values()), hours_cur_month)]
@@ -99,7 +96,6 @@ class Study(commands.Cog):
         if not self.guild:
             self.guild = self.bot.get_guild(guildID)
         self.role_name_to_obj = {role.name: role for role in self.guild.roles}
-        # self.role_ids = self.guild.get_role()
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -179,7 +175,7 @@ class Study(commands.Cog):
             # New member
             # next_time = list(role_name_to_begin_hours.values())[1]
             next_time = role_name_to_begin_hours[next_role] - hours_cur_month
-            next_time = round(next_time, 1)
+            next_time = round_num(next_time)
 
         text = f"""
         **User:** ``{name}``\n

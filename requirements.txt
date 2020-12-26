@@ -6,6 +6,7 @@ cffi==1.14.4
 chardet==3.0.4
 discord.py==1.5.1
 greenlet==0.4.17
+hjson==3.0.2
 idna==2.10
 msgpack==1.0.2
 multidict==4.7.6
