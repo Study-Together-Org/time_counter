@@ -14,20 +14,14 @@ handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w'
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
-
 with open("roles.json") as f:
     roles = hjson.load(f)
 
-# rolesID = [roles[i]['id'] for i in roles]
 role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) for role_name, role_info in
                             roles.items()}
 role_names = list(roles.keys())
 guildID = int(os.getenv("guildID"))
 
-# action_categories = [
-#     "enter channel", "exit channel", "start screenshare", "end screenshare", "start video", "end video", "start voice",
-#     "end voice", "start timer", "end timer"
-# ]
 
 def get_utctime():
     now = datetime.utcnow()
@@ -74,7 +68,6 @@ class Study(commands.Cog):
         self.role_objs = None
 
     def get_role(self, user):
-        # role_id = rolesID[bisect.bisect_left(list(role_name_to_begin_hours.values()), hours_cur_month)]
         user_study_roles = list(set(user.roles).intersection(set(self.role_name_to_obj.values())))
         role = None
         next_role = None
@@ -170,7 +163,6 @@ class Study(commands.Cog):
 
         if not hours_cur_month:
             # New member
-            # next_time = list(role_name_to_begin_hours.values())[1]
             next_time = role_name_to_begin_hours[next_role] - hours_cur_month
             next_time = round_num(next_time)
 
