@@ -24,6 +24,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     discord_user_id = Column(String(varchar_length))
 
+
 class Action(Base):
     # How to make it just use the class name instead of hard coding the table name?
     __tablename__ = 'action'
@@ -35,8 +36,13 @@ class Action(Base):
 
     user = relationship("User", back_populates="action")
 
-User.action = relationship("Action", order_by=Action.id, back_populates="user")
+
+action_categories = [
+    "enter channel", "exit channel", "start screenshare", "end screenshare", "start video", "end video", "start voice",
+    "end voice", "start timer", "end timer"
+]
 
 
 if __name__ == '__main__':
+    User.action = relationship("Action", order_by=Action.id, back_populates="user")
     utilities.recreate_db(Base, engine)

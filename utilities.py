@@ -3,9 +3,10 @@ import shortuuid
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from faker import Faker
+
 # from models import User
 
-Faker.seed(0)
+Faker.seed(42)
 fake = Faker()
 
 from dotenv import load_dotenv
@@ -65,5 +66,10 @@ def calc_total_time(data):
     return total_time
 
 
-def generate_discord_user_id(length=18):
-    return fake.random_number(digits=length, fix_len=True)
+def generate_discord_user_id(size=1, length=18):
+    return [fake.random_number(digits=length, fix_len=True) for _ in range(size)]
+
+
+def generate_datetime(size=1, start_date='-30d'):
+    return [fake.past_date(start_date=start_date) for _ in range(size)]
+

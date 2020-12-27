@@ -139,42 +139,42 @@ class Study(commands.Cog):
         emb = discord.Embed(title=":coffee: Personal rank statistics", description=text)
         await ctx.send(embed=emb)
 
-    @commands.command(aliases=['top'])
-    async def lb(self, ctx, *, page: int = 1):
-        if page < 1:
-            await ctx.send("You can't look page 0 or a minus number.")
-            return
-
-        data = sheet.range("B3:D" + str(sheet.row_count))
-        size = await get_range_col_size("B3:D" + str(sheet.row_count))
-        r = await get_list_like_before(data, size)
-        data = r
-        start = page * 10 - 10
-        stop = page * 10
-        if start > len(data):
-            await ctx.send("There are not enough pages")
-            return
-        if stop > len(data):
-            stop = len(data)
-        leaderboard = data[start:stop]
-        lb = ''
-        for i in leaderboard:
-            if len(i) != 3:
-                break
-            monthly = str(round(int(i[2].replace(',', '')) / 60, 1)) + "h"
-            lb += f'`{i[0]}.` {i[1][:-5]} {monthly}\n'
-        lb_embed = discord.Embed(title=f'<:check:680427526438649860> Study leaderboard ({self.bot.month})',
-                                 description=lb)
-        lb_embed.set_footer(text=f"Type !lb {page + 1} to see placements {start + 1 + 10}-{stop + 10}")
-        await ctx.send(embed=lb_embed)
-
-    @lb.error
-    async def lb_error(self, ctx, error):
-        if isinstance(error, commands.errors.BadArgument):
-            await ctx.send("You provided a wrong argument, more likely you provide an invalid number for the page.")
-        else:
-            await ctx.send("Unknown error, please contact owner.")
-            print(error)
+    # @commands.command(aliases=['top'])
+    # async def lb(self, ctx, *, page: int = 1):
+    #     if page < 1:
+    #         await ctx.send("You can't look page 0 or a minus number.")
+    #         return
+    #
+    #     data = sheet.range("B3:D" + str(sheet.row_count))
+    #     size = await get_range_col_size("B3:D" + str(sheet.row_count))
+    #     r = await get_list_like_before(data, size)
+    #     data = r
+    #     start = page * 10 - 10
+    #     stop = page * 10
+    #     if start > len(data):
+    #         await ctx.send("There are not enough pages")
+    #         return
+    #     if stop > len(data):
+    #         stop = len(data)
+    #     leaderboard = data[start:stop]
+    #     lb = ''
+    #     for i in leaderboard:
+    #         if len(i) != 3:
+    #             break
+    #         monthly = str(round(int(i[2].replace(',', '')) / 60, 1)) + "h"
+    #         lb += f'`{i[0]}.` {i[1][:-5]} {monthly}\n'
+    #     lb_embed = discord.Embed(title=f'<:check:680427526438649860> Study leaderboard ({self.bot.month})',
+    #                              description=lb)
+    #     lb_embed.set_footer(text=f"Type !lb {page + 1} to see placements {start + 1 + 10}-{stop + 10}")
+    #     await ctx.send(embed=lb_embed)
+    #
+    # @lb.error
+    # async def lb_error(self, ctx, error):
+    #     if isinstance(error, commands.errors.BadArgument):
+    #         await ctx.send("You provided a wrong argument, more likely you provide an invalid number for the page.")
+    #     else:
+    #         await ctx.send("Unknown error, please contact owner.")
+    #         print(error)
 
     # @commands.command()
     # async def me(self, ctx, user: discord.Member = None):
