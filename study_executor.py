@@ -30,7 +30,8 @@ class Study(commands.Cog):
         self.role_objs = None
 
     def get_role(self, user):
-        user_study_roles = list(set(user.roles).intersection(set(self.role_name_to_obj.values())))
+        user_roles = {r for r in user.roles if r.name != "@everyone"}
+        user_study_roles = list(user_roles.intersection(set(self.role_name_to_obj.values())))
         role = None
         next_role = None
 
@@ -69,8 +70,8 @@ class Study(commands.Cog):
         for action_name, channel in [("exit channel", before.channel), ("enter channel", after.channel)]:
             if channel:
                 insert_action = f"""
-                    INSERT INTO Action (User_id, category, detail, creation_time)
-                    VALUES ({User_id}, '{action_name}', '{channel.id}', '{get_utctime()}');
+                    INSERT INTO action (User_id, category, detail, creation_time)
+                    VALUES ({User_id}, '{action_name}', '{channel.id}', '{utilities.get_utctime()}');
                 """
                 print(insert_action)
                 response = await self.bot.sql.query(insert_action)
@@ -80,29 +81,29 @@ class Study(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member):
         insert_new_member = f"""
-            INSERT INTO User (discord_user_id)
+            INSERT INTO user (discord_user_id)
             VALUES ({member.id});
         """
-
+        print(insert_new_member)
         response = await self.bot.sql.query(insert_new_member)
         if response:
             print(response)
 
     async def get_User_id(self, discord_id):
         select_User_id = f"""
-            SELECT id from User WHERE discord_user_id = {discord_id}
+            SELECT id from user WHERE discord_user_id = {discord_id}
         """
         User_id = await self.bot.sql.query(select_User_id)
         return User_id[0]["id"]
 
     async def get_time_cur_month(self, User_id):
         get_cur_month_data_query = f"""
-            SELECT category, creation_time FROM Action
+            SELECT category, creation_time FROM action
             WHERE User_id = {User_id} AND (category = 'enter channel' OR category = 'exit channel')
         """
         print(get_cur_month_data_query)
         response = await self.bot.sql.query(get_cur_month_data_query)
-        total_time = calc_total_time(response)
+        total_time = utilities.calc_total_time(response)
         return total_time
 
     @commands.command(aliases=["rank"])
@@ -124,12 +125,12 @@ class Study(commands.Cog):
 
         if not hours_cur_month:
             # New member
-            next_time = role_name_to_begin_hours[next_role] - hours_cur_month
-            next_time = round_num(next_time)
+            next_time = role_name_to_begin_hours[next_role.name] - hours_cur_month
+            next_time = utilities.round_num(next_time)
 
         text = f"""
         **User:** ``{name}``\n
-        __Study role__ ({get_utctime().strftime("%B")})
+        __Study role__ ({utilities.get_utctime().strftime("%B")})
         **Current study role:** {role.mention if role else "No Role"}
         **Next study role:** {next_role.mention if next_role else "``👑 Highest rank reached``"}
         **Role promotion in:** ``{(str(next_time) + 'h') if next_time else list(role_name_to_begin_hours.values())[1]}``
