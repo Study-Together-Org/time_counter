@@ -30,7 +30,7 @@ class Study(commands.Cog):
         self.role_objs = None
 
     def get_role(self, user):
-        user_roles = {r for r in user.roles if r.name != "@everyone"}
+        user_roles = {r for r in user.roles if r.name not in {"ST! Tester", "@everyone"}}
         user_study_roles = list(user_roles.intersection(set(self.role_name_to_obj.values())))
         role = None
         next_role = None
@@ -44,6 +44,13 @@ class Study(commands.Cog):
             next_role = self.role_name_to_obj[role_names[0]]
 
         return role, next_role
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        # self.p()
+        if message.content == '!p' and message.author.bot:
+            ctx = await self.bot.get_context(message)
+            await self.p(ctx, message.author)
 
     async def fetch(self):
         if not self.guild:
@@ -94,7 +101,7 @@ class Study(commands.Cog):
             SELECT id from user WHERE discord_user_id = {discord_id}
         """
         User_id = await self.bot.sql.query(select_User_id)
-        return User_id[0]["id"]
+        return User_id[0]["id"] if User_id else None
 
     async def get_time_cur_month(self, User_id):
         get_cur_month_data_query = f"""
@@ -108,16 +115,18 @@ class Study(commands.Cog):
 
     @commands.command(aliases=["rank"])
     async def p(self, ctx, user: discord.Member = None):
+        print("testing p")
         # if the user has not specified someone else
         if not user:
             user = ctx.author
 
-        if user.bot:
-            await ctx.send("Bots don't study ;)")
-            return
-
         name = user.name + "#" + user.discriminator
         User_id = await self.get_User_id(user.id)
+
+        if not User_id:
+            await self.on_member_join(user)
+            User_id = await self.get_User_id(user.id)
+
         hours_cur_month = await self.get_time_cur_month(User_id)
 
         role, next_role = self.get_role(user)
