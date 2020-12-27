@@ -27,6 +27,7 @@ action_df = pd.DataFrame(columns=['user_id', 'category', 'detail', 'creation_tim
 # It deliberately makes the last member not have any action
 action_df["user_id"] = np.random.randint(low=1, high=user_size, size=action_size)
 action_df["category"] = np.random.choice(models.action_categories[:2], size=action_size)
+action_df["detail"] = "private channel 13"
 action_df["creation_time"] = utilities.generate_datetime(size=action_size)
 
 user_df.to_sql('user', con=engine, if_exists="append", index=False)

@@ -72,13 +72,13 @@ class Study(commands.Cog):
         if before.channel == after.channel:
             return
 
-        User_id = await self.get_User_id(member.id)
+        User_id = await self.get_User_id(member)
 
         for action_name, channel in [("exit channel", before.channel), ("enter channel", after.channel)]:
             if channel:
                 insert_action = f"""
                     INSERT INTO action (User_id, category, detail, creation_time)
-                    VALUES ({User_id}, '{action_name}', '{channel.id}', '{utilities.get_utctime()}');
+                    VALUES ({User_id}, '{action_name}', '{channel.name}', '{utilities.get_utctime()}');
                 """
                 print(insert_action)
                 response = await self.bot.sql.query(insert_action)
@@ -96,12 +96,17 @@ class Study(commands.Cog):
         if response:
             print(response)
 
-    async def get_User_id(self, discord_id):
+    async def get_User_id(self, user):
         select_User_id = f"""
-            SELECT id from user WHERE discord_user_id = {discord_id}
+            SELECT id from user WHERE discord_user_id = {user.id}
         """
         User_id = await self.bot.sql.query(select_User_id)
-        return User_id[0]["id"] if User_id else None
+
+        if not User_id:
+            await self.on_member_join(user)
+            User_id = await self.bot.sql.query(select_User_id)
+
+        return User_id[0]["id"]
 
     async def get_time_cur_month(self, User_id):
         get_cur_month_data_query = f"""
@@ -121,11 +126,7 @@ class Study(commands.Cog):
             user = ctx.author
 
         name = user.name + "#" + user.discriminator
-        User_id = await self.get_User_id(user.id)
-
-        if not User_id:
-            await self.on_member_join(user)
-            User_id = await self.get_User_id(user.id)
+        User_id = await self.get_User_id(user)
 
         hours_cur_month = await self.get_time_cur_month(User_id)
 
