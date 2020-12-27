@@ -2,6 +2,11 @@ import os
 import shortuuid
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine
+from faker import Faker
+# from models import User
+
+Faker.seed(0)
+fake = Faker()
 
 from dotenv import load_dotenv
 
@@ -9,6 +14,11 @@ load_dotenv("dev.env")
 
 num_uuid = shortuuid.ShortUUID()
 num_uuid.set_alphabet("0123456789")
+
+
+def recreate_db(Base, engine):
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
 
 
 def get_engine():
@@ -56,4 +66,4 @@ def calc_total_time(data):
 
 
 def generate_discord_user_id(length=18):
-    return num_uuid.random(length=length)
+    return fake.random_number(digits=length, fix_len=True)
