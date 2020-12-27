@@ -1,7 +1,7 @@
 import os
 import pymysql
 from dotenv import load_dotenv
-load_dotenv("dev.env")
+load_dotenv("../dev.env")
 
 con = pymysql.connect(os.getenv("host"), os.getenv("user"), os.getenv("password"), autocommit=True)
 database_name = os.getenv("database")

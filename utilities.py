@@ -72,4 +72,3 @@ def generate_discord_user_id(size=1, length=18):
 
 def generate_datetime(size=1, start_date='-30d'):
     return [fake.past_date(start_date=start_date) for _ in range(size)]
-
