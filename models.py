@@ -24,6 +24,8 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     discord_user_id = Column(String(varchar_length), unique=True)
     study_time = Column(FLOAT(precision=6, scale=2, unsigned=True), default=0, index=True)
+    # unique = False since currently updating requires writing duplicate entries
+    rank = Column(Integer, nullable=True, index=True)
 
 
 class Action(Base):
@@ -43,7 +45,8 @@ action_categories = [
     "end voice", "start timer", "end timer"
 ]
 
+# This most be in global scope for correct models
+User.action = relationship("Action", order_by=Action.id, back_populates="user")
 
 if __name__ == '__main__':
-    User.action = relationship("Action", order_by=Action.id, back_populates="user")
     utilities.recreate_db(Base, engine)

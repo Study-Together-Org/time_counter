@@ -8,6 +8,7 @@ import hjson
 from discord.ext import commands
 from dotenv import load_dotenv
 import utilities
+import numpy as np
 from sqlalchemy import update
 
 load_dotenv("dev.env")
@@ -76,41 +77,19 @@ class Study(commands.Cog):
         user = await self.bot.get_user(int(discord_user_id))
         return user.name
 
-    async def get_neighbor_stats(self, hours_cur_month):
-        get_lb_query = f"""
-                SELECT *
-                FROM (
-                    SELECT *
-                    FROM (
-                        SELECT *
-                        FROM user
-                        WHERE
-                        user.study_time >= {hours_cur_month}
-                        AND user.id != 1
-                        ORDER BY study_time
-                        LIMIT 5
-                    ) a
-                ORDER BY a.study_time DESC
-                ) z
-            UNION ALL
-                SELECT *
-                FROM user
-                WHERE user.id = 1
-            UNION ALL
-                SELECT *
-                FROM (
-                    SELECT *
-                    FROM user
-                    WHERE
-                    study_time < {hours_cur_month}
-                    ORDER BY study_time DESC
-                    LIMIT 5
-                ) w
-            order by study_time
-        """
-        print(get_lb_query)
-        response = await self.bot.sql.query(get_lb_query)
+    async def get_user_rank(self, user_id):
+        rank = self.sqlalchemy_session.query(User.rank).filter(User.id == user_id).scalar()
+        return rank
 
+    async def get_neighbor_stats(self, user_id):
+        user_res = self.sqlalchemy_session.query(User).filter(User.id == user_id).all()
+        if not user_res:
+            return
+
+        user = user_res[0]
+        before = self.sqlalchemy_session.query(User).filter(User.study_time > (user.study_time or 0)).order_by(User.study_time.desc())[-5:]
+        after = self.sqlalchemy_session.query(User).filter(User.study_time <= (user.study_time or 0)).filter(User.id != user_id).order_by(User.study_time.desc())[:5]
+        response = before + [user] + after
         return response
 
     @commands.Cog.listener()
@@ -186,11 +165,13 @@ class Study(commands.Cog):
         response = pd.read_sql(query.statement, self.sqlalchemy_session.bind)
         agg = response.groupby("user_id", as_index=False).apply(utilities.get_total_time_cur_month)
         agg.columns = [agg.columns[0], "study_time"]
+        # TODO: use user' join date to break ties
+        agg["rank"] = agg.sort_values(by=["study_time", "user_id"], ascending=False).reset_index().sort_values("index").index + 1
         agg.to_sql('temp_table', self.sqlalchemy_session.bind, if_exists='replace', index=False)
 
         update_statement = """
             UPDATE user JOIN temp_table ON user.id = temp_table.user_id
-            SET user.study_time = temp_table.study_time
+            SET user.study_time = temp_table.study_time, user.rank = temp_table.rank
             WHERE user.id = temp_table.user_id
         """
 
@@ -238,7 +219,7 @@ class Study(commands.Cog):
         if not user:
             user = ctx.author
 
-        User_id = await self.get_User_id(user)
+        user_id = await self.get_User_id(user)
 
         # data = self.r()
         stop = page * 10
@@ -252,12 +233,16 @@ class Study(commands.Cog):
             await ctx.send("There are not enough pages")
             return
 
-        hours_cur_month = await self.get_time_cur_month(User_id)
-        leaderboard = await self.get_neighbor_stats(hours_cur_month)
+        leaderboard = await self.get_neighbor_stats(user_id)
+        if not leaderboard:
+            print("no stats")
+            return
+
         lb = ''
+
         for person in leaderboard:
-            name = (await self.get_discord_name(person["discord_user_id"]))[:15]
-            lb += f'`{person["id"]:>5}.` {person["study_time"]:<06} h {name}\n'
+            name = (await self.get_discord_name(person.discord_user_id))[:15]
+            lb += f'`{person.rank:>5}.` {person.study_time:<06} h {name}\n'
         lb_embed = discord.Embed(title=f'🧗 Study leaderboard ({utilities.get_month()})',
                                  description=lb)
         # lb_embed.set_footer(text=f"Type !lb {page + 1} to see placements {stop + 1}-{stop + 10}")
