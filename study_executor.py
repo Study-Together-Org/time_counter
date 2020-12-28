@@ -1,6 +1,8 @@
 import logging
+from sqlalchemy.orm import sessionmaker
 import os
-
+import pandas as pd
+from models import Action
 import discord
 import hjson
 from discord.ext import commands
@@ -28,6 +30,7 @@ class Study(commands.Cog):
         self.bot = bot
         self.guild = None
         self.role_objs = None
+        self.sqlalchemy_session = None
 
     def get_role(self, user):
         user_roles = {r for r in user.roles if r.name not in {"ST! Tester", "@everyone"}}
@@ -62,6 +65,10 @@ class Study(commands.Cog):
         if self.bot.pool is None:
             await self.bot.sql.init()
 
+        engine = utilities.get_engine()
+        Session = sessionmaker(bind=engine)
+        self.sqlalchemy_session = Session()
+
         await self.fetch()
         print('We have logged in as {0.user}'.format(self.bot))
         # game = discord.Game(f"{self.bot.month} statistics")
@@ -78,7 +85,7 @@ class Study(commands.Cog):
             if channel:
                 insert_action = f"""
                     INSERT INTO action (User_id, category, detail, creation_time)
-                    VALUES ({User_id}, '{action_name}', '{channel.name}', '{utilities.get_utctime()}');
+                    VALUES ({User_id}, '{action_name}', '{channel.name}', '{utilities.get_time()}');
                 """
                 print(insert_action)
                 response = await self.bot.sql.query(insert_action)
@@ -118,9 +125,28 @@ class Study(commands.Cog):
         total_time = utilities.calc_total_time(response)
         return total_time
 
+
+    @commands.command(aliases=["refresh"])
+    async def r(self, ctx=None, user: discord.Member = None):
+        # if the user has not specified someone else
+        # if not user:
+        #     user = ctx.author
+
+        # get_cur_month_data_query = f"""
+        #     SELECT user_id, category, creation_time FROM action
+        #     WHERE category = 'enter channel' OR category = 'exit channel'
+        # """
+
+        query = self.sqlalchemy_session.query(Action.user_id, Action.category, Action.creation_time) \
+            .filter(Action.category.in_(['enter channel', 'exit channel'])) \
+            .filter(Action.creation_time >= utilities.get_month_start())
+        response = pd.read_sql(query.statement, self.sqlalchemy_session.bind)
+        agg = response.groupby("user_id", as_index=False).apply(utilities.get_total_time_cur_month)
+
+        return agg
+
     @commands.command(aliases=["rank"])
     async def p(self, ctx, user: discord.Member = None):
-        print("testing p")
         # if the user has not specified someone else
         if not user:
             user = ctx.author
@@ -140,7 +166,7 @@ class Study(commands.Cog):
 
         text = f"""
         **User:** ``{name}``\n
-        __Study role__ ({utilities.get_utctime().strftime("%B")})
+        __Study role__ ({utilities.get_time().strftime("%B")})
         **Current study role:** {role.mention if role else "No Role"}
         **Next study role:** {next_role.mention if next_role else "``👑 Highest rank reached``"}
         **Role promotion in:** ``{(str(next_time) + 'h') if next_time else list(role_name_to_begin_hours.values())[1]}``
@@ -150,42 +176,54 @@ class Study(commands.Cog):
         emb = discord.Embed(title=":coffee: Personal rank statistics", description=text)
         await ctx.send(embed=emb)
 
-    # @commands.command(aliases=['top'])
-    # async def lb(self, ctx, *, page: int = 1):
-    #     if page < 1:
-    #         await ctx.send("You can't look page 0 or a minus number.")
-    #         return
-    #
-    #     data = sheet.range("B3:D" + str(sheet.row_count))
-    #     size = await get_range_col_size("B3:D" + str(sheet.row_count))
-    #     r = await get_list_like_before(data, size)
-    #     data = r
-    #     start = page * 10 - 10
-    #     stop = page * 10
-    #     if start > len(data):
-    #         await ctx.send("There are not enough pages")
-    #         return
-    #     if stop > len(data):
-    #         stop = len(data)
-    #     leaderboard = data[start:stop]
-    #     lb = ''
-    #     for i in leaderboard:
-    #         if len(i) != 3:
-    #             break
-    #         monthly = str(round(int(i[2].replace(',', '')) / 60, 1)) + "h"
-    #         lb += f'`{i[0]}.` {i[1][:-5]} {monthly}\n'
-    #     lb_embed = discord.Embed(title=f'<:check:680427526438649860> Study leaderboard ({self.bot.month})',
-    #                              description=lb)
-    #     lb_embed.set_footer(text=f"Type !lb {page + 1} to see placements {start + 1 + 10}-{stop + 10}")
-    #     await ctx.send(embed=lb_embed)
-    #
-    # @lb.error
-    # async def lb_error(self, ctx, error):
-    #     if isinstance(error, commands.errors.BadArgument):
-    #         await ctx.send("You provided a wrong argument, more likely you provide an invalid number for the page.")
-    #     else:
-    #         await ctx.send("Unknown error, please contact owner.")
-    #         print(error)
+    @commands.command(aliases=['top'])
+    async def lb(self, ctx, *, page: int = 1, user: discord.Member = None):
+        if page < 1:
+            await ctx.send("You can't look page 0 or a minus number.")
+            return
+
+        # if the user has not specified someone else
+        if not user:
+            user = ctx.author
+
+        User_id = await self.get_User_id(user)
+
+        data = self.r()
+        stop = page * 10
+        start = stop - 10
+
+        get_lb_query = f"""
+            SELECT category, creation_time FROM action
+            WHERE User_id = {User_id} AND (category = 'enter channel' OR category = 'exit channel')
+        """
+        print(get_lb_query)
+        response = await self.bot.sql.query(get_lb_query)
+
+        if start > len(data):
+            await ctx.send("There are not enough pages")
+            return
+
+        if stop > len(data):
+            stop = len(data)
+        leaderboard = data[start:stop]
+        lb = ''
+        for i in leaderboard:
+            if len(i) != 3:
+                break
+            monthly = str(round(int(i[2].replace(',', '')) / 60, 1)) + "h"
+            lb += f'`{i[0]}.` {i[1][:-5]} {monthly}\n'
+        lb_embed = discord.Embed(title=f'<:check:680427526438649860> Study leaderboard ({utilities.get_month()})',
+                                 description=lb)
+        lb_embed.set_footer(text=f"Type !lb {page + 1} to see placements {stop + 1}-{stop + 10}")
+        await ctx.send(embed=lb_embed)
+
+    @lb.error
+    async def lb_error(self, ctx, error):
+        if isinstance(error, commands.errors.BadArgument):
+            await ctx.send("You provided a wrong argument, more likely you provide an invalid number for the page.")
+        else:
+            await ctx.send("Unknown error, please contact owner.")
+            print(error)
 
     # @commands.command()
     # async def me(self, ctx, user: discord.Member = None):

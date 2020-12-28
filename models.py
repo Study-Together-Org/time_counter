@@ -23,6 +23,7 @@ class User(Base):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True)
     discord_user_id = Column(String(varchar_length))
+    study_time = Column(Integer, default=0)
 
 
 class Action(Base):
@@ -32,7 +33,7 @@ class Action(Base):
     user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
     category = Column(String(varchar_length), nullable=False)
     detail = Column(String(varchar_length))
-    creation_time = Column(DATETIME, default=utilities.get_utctime)
+    creation_time = Column(DATETIME, default=utilities.get_time)
 
     user = relationship("User", back_populates="action")
 
