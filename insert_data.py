@@ -22,7 +22,6 @@ action_size = user_size * 30 * 3 + 1
 
 user_df = pd.DataFrame(columns=['discord_user_id'])
 user_df['discord_user_id'] = utilities.generate_discord_user_id(user_size)
-user_df['study_time'] = 0
 
 action_df = pd.DataFrame(columns=['user_id', 'category', 'detail', 'creation_time'])
 # It deliberately makes the last member not have any action

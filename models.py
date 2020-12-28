@@ -2,7 +2,7 @@ import os
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import ForeignKey, Column, Integer, String
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.mysql import DATETIME, FLOAT
+from sqlalchemy.dialects.mysql import DATETIME, FLOAT, INTEGER
 
 from dotenv import load_dotenv
 import utilities
@@ -23,7 +23,7 @@ class User(Base):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True)
     discord_user_id = Column(String(varchar_length), unique=True)
-    study_time = Column(FLOAT(precision=6, scale=2, unsigned=True), default=0, index=True)
+    study_time = Column(FLOAT(precision=6, scale=2, unsigned=True), server_default="0", index=True)
     # unique = False since currently updating requires writing duplicate entries
     rank = Column(Integer, nullable=True, index=True)
 

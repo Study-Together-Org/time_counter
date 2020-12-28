@@ -95,9 +95,13 @@ class Study(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message):
         # self.p()
-        if message.content == '!p' and message.author.bot:
+        if message.author.bot:
             ctx = await self.bot.get_context(message)
-            await self.p(ctx, message.author)
+            if message.content == '!p':
+                await self.p(ctx, message.author)
+            elif message.content == '!lb':
+                await self.r()
+                await self.lb(ctx=ctx, user=message.author)
 
     async def fetch(self):
         if not self.guild:
@@ -177,6 +181,7 @@ class Study(commands.Cog):
 
         self.sqlalchemy_session.bind.execute(update_statement)
         print("refreshed")
+        await ctx.send("refreshed!")
 
     @commands.command(aliases=["rank"])
     async def p(self, ctx, user: discord.Member = None):
@@ -194,7 +199,7 @@ class Study(commands.Cog):
 
         if not hours_cur_month:
             # New member
-            next_time = role_name_to_begin_hours[next_role.name] - hours_cur_month
+            next_time = role_name_to_begin_hours[next_role.name]
             next_time = utilities.round_num(next_time)
 
         text = f"""
@@ -242,10 +247,10 @@ class Study(commands.Cog):
 
         for person in leaderboard:
             name = (await self.get_discord_name(person.discord_user_id))[:15]
-            lb += f'`{person.rank:>5}.` {person.study_time:<06} h {name}\n'
+            lb += f'`{(person.rank or 0):>5}.` {person.study_time:<06} h {name}\n'
         lb_embed = discord.Embed(title=f'🧗 Study leaderboard ({utilities.get_month()})',
                                  description=lb)
-        # lb_embed.set_footer(text=f"Type !lb {page + 1} to see placements {stop + 1}-{stop + 10}")
+        lb_embed.set_footer(text=f"A rank of 0 means no study time logged yet")
         await ctx.send(embed=lb_embed)
 
     @lb.error
