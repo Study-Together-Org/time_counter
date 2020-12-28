@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from faker import Faker
 import pandas as pd
 import numpy as np
+
 # from models import User
 
 Faker.seed(42)
@@ -44,8 +45,8 @@ def get_month():
     return datetime.utcnow().strftime("%B")
 
 
-def round_num(num):
-    return round(num, 1)
+def round_num(num, ndigits=2):
+    return round(num, ndigits=ndigits)
 
 
 def calc_total_time(data):
@@ -77,6 +78,10 @@ def generate_discord_user_id(size=1, length=18):
 
 def generate_datetime(size=1, start_date='-30d'):
     return sorted([fake.past_datetime(start_date=start_date) for _ in range(size)])
+
+
+def generate_username(size=1):
+    return [fake.user_name() for i in range(size)]
 
 
 def get_total_time_cur_month(df):

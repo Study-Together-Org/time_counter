@@ -3,6 +3,7 @@
 # miscellaneous
 *.idea
 *.env
+*.lprof
 
 # Python
 venv

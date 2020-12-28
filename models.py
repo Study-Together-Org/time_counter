@@ -2,7 +2,7 @@ import os
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import ForeignKey, Column, Integer, String
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.mysql import DATETIME
+from sqlalchemy.dialects.mysql import DATETIME, FLOAT
 
 from dotenv import load_dotenv
 import utilities
@@ -22,15 +22,15 @@ class User(Base):
     # How to make it just use the class name instead of hard coding the table name?
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True)
-    discord_user_id = Column(String(varchar_length))
-    study_time = Column(Integer, default=0)
+    discord_user_id = Column(String(varchar_length), unique=True)
+    study_time = Column(FLOAT(precision=6, scale=2, unsigned=True), default=0, index=True)
 
 
 class Action(Base):
     # How to make it just use the class name instead of hard coding the table name?
     __tablename__ = 'action'
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=False, index=True)
     category = Column(String(varchar_length), nullable=False)
     detail = Column(String(varchar_length))
     creation_time = Column(DATETIME, default=utilities.get_time)

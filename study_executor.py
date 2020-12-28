@@ -2,12 +2,13 @@ import logging
 from sqlalchemy.orm import sessionmaker
 import os
 import pandas as pd
-from models import Action
+from models import Action, User
 import discord
 import hjson
 from discord.ext import commands
 from dotenv import load_dotenv
 import utilities
+from sqlalchemy import update
 
 load_dotenv("dev.env")
 logger = logging.getLogger('discord')
@@ -47,6 +48,70 @@ class Study(commands.Cog):
             next_role = self.role_name_to_obj[role_names[0]]
 
         return role, next_role
+
+    async def get_num_rows(self, table):
+        count_row_query = f"""
+            SELECT COUNT(*)
+            FROM {table}
+        """
+        num_rows = await self.bot.sql.query(count_row_query)
+        return list(num_rows[0].values())[0]
+
+    async def get_User_id(self, user):
+        select_User_id = f"""
+            SELECT id from user WHERE discord_user_id = {user.id}
+        """
+        User_id = await self.bot.sql.query(select_User_id)
+
+        if not User_id:
+            await self.on_member_join(user)
+            User_id = await self.bot.sql.query(select_User_id)
+
+        return User_id[0]["id"]
+
+    async def get_discord_name(self, discord_user_id):
+        if os.getenv("mode") == "test":
+            return utilities.generate_username()[0]
+
+        user = await self.bot.get_user(int(discord_user_id))
+        return user.name
+
+    async def get_neighbor_stats(self, hours_cur_month):
+        get_lb_query = f"""
+                SELECT *
+                FROM (
+                    SELECT *
+                    FROM (
+                        SELECT *
+                        FROM user
+                        WHERE
+                        user.study_time >= {hours_cur_month}
+                        AND user.id != 1
+                        ORDER BY study_time
+                        LIMIT 5
+                    ) a
+                ORDER BY a.study_time DESC
+                ) z
+            UNION ALL
+                SELECT *
+                FROM user
+                WHERE user.id = 1
+            UNION ALL
+                SELECT *
+                FROM (
+                    SELECT *
+                    FROM user
+                    WHERE
+                    study_time < {hours_cur_month}
+                    ORDER BY study_time DESC
+                    LIMIT 5
+                ) w
+            order by study_time
+        """
+        print(get_lb_query)
+        response = await self.bot.sql.query(get_lb_query)
+
+        return response
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -103,47 +168,34 @@ class Study(commands.Cog):
         if response:
             print(response)
 
-    async def get_User_id(self, user):
-        select_User_id = f"""
-            SELECT id from user WHERE discord_user_id = {user.id}
-        """
-        User_id = await self.bot.sql.query(select_User_id)
-
-        if not User_id:
-            await self.on_member_join(user)
-            User_id = await self.bot.sql.query(select_User_id)
-
-        return User_id[0]["id"]
-
     async def get_time_cur_month(self, User_id):
         get_cur_month_data_query = f"""
-            SELECT category, creation_time FROM action
-            WHERE User_id = {User_id} AND (category = 'enter channel' OR category = 'exit channel')
+            SELECT study_time FROM user
+            WHERE id = {User_id}
         """
         print(get_cur_month_data_query)
         response = await self.bot.sql.query(get_cur_month_data_query)
-        total_time = utilities.calc_total_time(response)
-        return total_time
-
+        return list(response[0].values())[0]
 
     @commands.command(aliases=["refresh"])
+    # @profile
     async def r(self, ctx=None, user: discord.Member = None):
-        # if the user has not specified someone else
-        # if not user:
-        #     user = ctx.author
-
-        # get_cur_month_data_query = f"""
-        #     SELECT user_id, category, creation_time FROM action
-        #     WHERE category = 'enter channel' OR category = 'exit channel'
-        # """
-
         query = self.sqlalchemy_session.query(Action.user_id, Action.category, Action.creation_time) \
             .filter(Action.category.in_(['enter channel', 'exit channel'])) \
             .filter(Action.creation_time >= utilities.get_month_start())
         response = pd.read_sql(query.statement, self.sqlalchemy_session.bind)
         agg = response.groupby("user_id", as_index=False).apply(utilities.get_total_time_cur_month)
+        agg.columns = [agg.columns[0], "study_time"]
+        agg.to_sql('temp_table', self.sqlalchemy_session.bind, if_exists='replace', index=False)
 
-        return agg
+        update_statement = """
+            UPDATE user JOIN temp_table ON user.id = temp_table.user_id
+            SET user.study_time = temp_table.study_time
+            WHERE user.id = temp_table.user_id
+        """
+
+        self.sqlalchemy_session.bind.execute(update_statement)
+        print("refreshed")
 
     @commands.command(aliases=["rank"])
     async def p(self, ctx, user: discord.Member = None):
@@ -188,33 +240,27 @@ class Study(commands.Cog):
 
         User_id = await self.get_User_id(user)
 
-        data = self.r()
+        # data = self.r()
         stop = page * 10
         start = stop - 10
+        # if stop > len(data):
+        #     stop = len(data)
+        # leaderboard = data[start:stop]
 
-        get_lb_query = f"""
-            SELECT category, creation_time FROM action
-            WHERE User_id = {User_id} AND (category = 'enter channel' OR category = 'exit channel')
-        """
-        print(get_lb_query)
-        response = await self.bot.sql.query(get_lb_query)
-
-        if start > len(data):
+        num_users = await self.get_num_rows("user")
+        if start > num_users:
             await ctx.send("There are not enough pages")
             return
 
-        if stop > len(data):
-            stop = len(data)
-        leaderboard = data[start:stop]
+        hours_cur_month = await self.get_time_cur_month(User_id)
+        leaderboard = await self.get_neighbor_stats(hours_cur_month)
         lb = ''
-        for i in leaderboard:
-            if len(i) != 3:
-                break
-            monthly = str(round(int(i[2].replace(',', '')) / 60, 1)) + "h"
-            lb += f'`{i[0]}.` {i[1][:-5]} {monthly}\n'
-        lb_embed = discord.Embed(title=f'<:check:680427526438649860> Study leaderboard ({utilities.get_month()})',
+        for person in leaderboard:
+            name = (await self.get_discord_name(person["discord_user_id"]))[:15]
+            lb += f'`{person["id"]:>5}.` {person["study_time"]:<06} h {name}\n'
+        lb_embed = discord.Embed(title=f'🧗 Study leaderboard ({utilities.get_month()})',
                                  description=lb)
-        lb_embed.set_footer(text=f"Type !lb {page + 1} to see placements {stop + 1}-{stop + 10}")
+        # lb_embed.set_footer(text=f"Type !lb {page + 1} to see placements {stop + 1}-{stop + 10}")
         await ctx.send(embed=lb_embed)
 
     @lb.error
