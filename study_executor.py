@@ -87,8 +87,10 @@ class Study(commands.Cog):
             return
 
         user = user_res[0]
-        before = self.sqlalchemy_session.query(User).filter(User.study_time > (user.study_time or 0)).order_by(User.study_time.desc())[-5:]
-        after = self.sqlalchemy_session.query(User).filter(User.study_time <= (user.study_time or 0)).filter(User.id != user_id).order_by(User.study_time.desc())[:5]
+        before = self.sqlalchemy_session.query(User).filter(User.study_time > (user.study_time or 0)).order_by(
+            User.study_time.desc())[-5:]
+        after = self.sqlalchemy_session.query(User).filter(User.study_time <= (user.study_time or 0)).filter(
+            User.id != user_id).order_by(User.study_time.desc())[:5]
         response = before + [user] + after
         return response
 
@@ -170,7 +172,8 @@ class Study(commands.Cog):
         agg = response.groupby("user_id", as_index=False).apply(utilities.get_total_time_cur_month)
         agg.columns = [agg.columns[0], "study_time"]
         # TODO: use user' join date to break ties
-        agg["rank"] = agg.sort_values(by=["study_time", "user_id"], ascending=False).reset_index().sort_values("index").index + 1
+        agg["rank"] = agg.sort_values(by=["study_time", "user_id"], ascending=False).reset_index().sort_values(
+            "index").index + 1
         agg.to_sql('temp_table', self.sqlalchemy_session.bind, if_exists='replace', index=False)
 
         update_statement = """
@@ -250,7 +253,7 @@ class Study(commands.Cog):
             lb += f'`{(person.rank or 0):>5}.` {person.study_time:<06} h {name}\n'
         lb_embed = discord.Embed(title=f'🧗 Study leaderboard ({utilities.get_month()})',
                                  description=lb)
-        lb_embed.set_footer(text=f"A rank of 0 means no study time logged yet")
+        lb_embed.set_footer(text=f"A rank of 0 means no logged study time yet")
         await ctx.send(embed=lb_embed)
 
     @lb.error
@@ -266,20 +269,12 @@ class Study(commands.Cog):
     #     if not user:
     #         user = ctx.author
     #
-    #     if user.bot:
-    #         await ctx.send("Bots don't study ;)")
-    #         return
-    #
     #     name = user.name + "#" + user.discriminator
     #
-    #     monthly_row = await get_monthly_row(name)
     #     weekly_row = await get_weekly_row(name)
     #     daily_row = await get_daily_row(name)
     #     overall_row = await get_overall_row(name)
-    #     if monthly_row == None:
-    #         monthly_row = ["", "", "0"]
     #     place_total = ("#" + overall_row[0] if overall_row[0] else "No data")
-    #     place_monthly = ("#" + monthly_row[0] if monthly_row[0] else "No data")
     #     place_weekly = ("#" + weekly_row[0] if weekly_row[0] else "No data")
     #     place_daily = ("#" + daily_row[0] if daily_row[0] else "No data")
     #
@@ -302,7 +297,19 @@ class Study(commands.Cog):
     #     longestStreak += " day" + ("s" if int(longestStreak) != 1 else "")
     #
     #     emb = discord.Embed(
-    #         description=f"```css\nPersonal study statistics```\n```glsl\nTimeframe   Hours    Place\n\nPast day:   {min_daily}{place_daily}\nPast week:  {min_weekly}{place_weekly}\nMonthly:    {min_monthly}{place_monthly}\nAll-time:   {min_total}{place_total}\n\nAverage/day ({self.bot.month}): {average}\n\nCurrent study streak: {currentStreak}\nLongest study streak: {longestStreak}```")
+    #         description=f"""
+    #                     ```css\nPersonal study statistics```\n
+    #                     ```
+    #                     glsl\nTimeframe   Hours    Place\n\n
+    #                     Past day:   {min_daily}{place_daily}\n
+    #                     Past week:  {min_weekly}{place_weekly}\n
+    #                     Monthly:    {min_monthly}{place_monthly}\n
+    #                     All-time:   {min_total}{place_total}\n\n
+    #                     Average/day ({self.bot.month}): {average}\n\n
+    #                     Current study streak: {currentStreak}\n
+    #                     Longest study streak: {longestStreak}
+    #                     ```
+    #                     """)
     #     foot = name
     #     if self.client.get_guild(self.client.guild_id).get_role(685967088170696715) in self.client.get_guild(
     #         self.client.guild_id).get_member(user.id).roles:
