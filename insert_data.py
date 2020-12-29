@@ -17,8 +17,8 @@ engine = utilities.get_engine()
 Session = sessionmaker(bind=engine)
 session = Session()
 
-user_size = 210
-action_size = user_size * 30 * 3 + 1
+user_size = 12003
+action_size = int(1e6 / 2)  # user_size * 30 * 3 + 1
 
 user_df = pd.DataFrame(columns=['discord_user_id'])
 user_df['discord_user_id'] = utilities.generate_discord_user_id(user_size)
