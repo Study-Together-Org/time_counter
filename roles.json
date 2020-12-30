@@ -1,45 +1,45 @@
 {
-  "Entry": {
+  "entry (30m-3h)": {
     "hours": "0.5-3",
     "id": 671196458501931019
   },
-  "Beginner": {
+  "beginner (3-6h)": {
     "hours": "3-6",
     "id": 666301176668618773
   },
-  "Intermediate": {
+  "intermediate (6-10h)": {
     "hours": "6-10",
     "id": 666301854996627477
   },
-  "Proficient": {
+  "proficient (10-20h)": {
     "hours": "10-20",
     "id": 666302285177159719
   },
-  "Advanced": {
+  "advanced (20-40h)": {
     "hours": "20-40",
     "id": 666302147176169502
   },
-  "Expert": {
+  "expert (40-60h)": {
     "hours": "40-60",
     "id": 666302227484508170
   },
-  "A+ Student": {
+  "a+ student (60-80h)": {
     "hours": "60-80",
     "id": 666302237634461696
   },
-  "Master": {
+  "master (80-120h)": {
     "hours": "80-120",
     "id": 671175974691536911
   },
-  "Grandmaster": {
+  "grandmaster (120-160h)": {
     "hours": "120-160",
     "id": 672197498323861532
   },
-  "Study-Machine": {
+  "study-machine (160-220h)": {
     "hours": "160-220",
     "id": 674297907150716959
   },
-  "Study Master": {
+  "study master (220-350h+)": {
     "hours": "220-350",
     "id": 676158518956654612}
 }
