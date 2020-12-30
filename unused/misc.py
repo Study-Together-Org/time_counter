@@ -48,3 +48,7 @@
 #     response = await self.bot.sql.query(get_lb_query)
 #
 #     return response
+
+# async def get_user_rank(self, user_id):
+#     rank = self.sqlalchemy_session.query(User.rank).filter(User.id == user_id).scalar()
+#     return rank

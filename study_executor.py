@@ -33,6 +33,8 @@ class Study(commands.Cog):
         self.guild = None
         self.role_objs = None
         self.sqlalchemy_session = None
+        # TODO: Redis - init Redis with
+        # Sorted Set: user_id -> study_hours
 
     def get_role(self, user):
         user_roles = {r for r in user.roles if r.name not in {"ST! Tester", "@everyone"}}
@@ -76,10 +78,6 @@ class Study(commands.Cog):
 
         user = await self.bot.get_user(int(discord_user_id))
         return user.name
-
-    async def get_user_rank(self, user_id):
-        rank = self.sqlalchemy_session.query(User.rank).filter(User.id == user_id).scalar()
-        return rank
 
     async def get_neighbor_stats(self, user_id):
         user_res = self.sqlalchemy_session.query(User).filter(User.id == user_id).all()
@@ -186,7 +184,12 @@ class Study(commands.Cog):
         print("refreshed")
         await ctx.send("refreshed!")
 
+    async def sleep(self):
+        import time
+        time.sleep(5)
+
     @commands.command(aliases=["rank"])
+    # @profile
     async def p(self, ctx, user: discord.Member = None):
         # if the user has not specified someone else
         if not user:
@@ -195,6 +198,7 @@ class Study(commands.Cog):
         name = user.name + "#" + user.discriminator
         User_id = await self.get_User_id(user)
 
+        # TODO: Redis - read from Redis
         hours_cur_month = await self.get_time_cur_month(User_id)
 
         role, next_role = self.get_role(user)
@@ -241,6 +245,7 @@ class Study(commands.Cog):
             await ctx.send("There are not enough pages")
             return
 
+        # TODO: Redis - read range from Redis
         leaderboard = await self.get_neighbor_stats(user_id)
         if not leaderboard:
             print("no stats")
@@ -271,6 +276,11 @@ class Study(commands.Cog):
     #
     #     name = user.name + "#" + user.discriminator
     #
+<<<<<<< Updated upstream
+=======
+    # TODO: Redis - get all such data from Redis
+    #     monthly_row = await get_monthly_row(name)
+>>>>>>> Stashed changes
     #     weekly_row = await get_weekly_row(name)
     #     daily_row = await get_daily_row(name)
     #     overall_row = await get_overall_row(name)
@@ -290,6 +300,7 @@ class Study(commands.Cog):
     #     average = str(round(float(min_monthly.strip()[:-1]) / datetime.datetime.utcnow().day,
     #                         1)) + " h" if min_monthly != "No data" else "No data"
     #
+    # TODO: Redis - get from User DB
     #     streaks = await get_streaks(name)
     #     currentStreak = (str(streaks[1]) if streaks else "0")
     #     longestStreak = (str(streaks[2]) if streaks else "0")
