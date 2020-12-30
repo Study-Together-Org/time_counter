@@ -23,9 +23,6 @@ class User(Base):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True)
     discord_user_id = Column(String(varchar_length), unique=True)
-    study_time = Column(FLOAT(precision=6, scale=2, unsigned=True), server_default="0", index=True)
-    # unique = False since currently updating requires writing duplicate entries
-    rank = Column(Integer, nullable=True, index=True)
 
 
 class Action(Base):

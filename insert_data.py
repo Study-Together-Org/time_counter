@@ -1,3 +1,5 @@
+# TODO Worry about duplicate random samples if CDCI
+
 import os
 from dotenv import load_dotenv
 import utilities
