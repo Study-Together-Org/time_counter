@@ -64,7 +64,7 @@ def generate_sorted_set():
         query = sqlalchemy_session.query(Action.user_id, Action.category, Action.creation_time) \
             .filter(Action.category.in_(['enter channel', 'exit channel']))
         if filter_time_fn:
-            query.filter(Action.creation_time >= filter_time_fn)
+            query = query.filter(Action.creation_time >= filter_time_fn())
 
         response = pd.read_sql(query.statement, sqlalchemy_session.bind)
         agg = response.groupby("user_id", as_index=False).apply(lambda x: utilities.get_total_time_for_time(x, filter_time_fn))

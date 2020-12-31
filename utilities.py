@@ -1,6 +1,6 @@
 import os
 import shortuuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine
 from faker import Faker
 import pandas as pd
@@ -87,11 +87,18 @@ def calc_total_time(data):
 
 
 def generate_discord_user_id(size=1, length=18):
-    return [fake.random_number(digits=length, fix_len=True) for _ in range(size)]
+    res = []
+
+    if size >= 2:
+        res += [int(os.getenv("tester_human_discord_user_id")), int(os.getenv("tester_bot_token_discord_user_id"))]
+
+    res += [fake.random_number(digits=length, fix_len=True) for _ in range(size)]
+
+    return res
 
 
 def generate_datetime(size=1, start_date=f'-{back_range}d'):
-    return sorted([fake.past_datetime(start_date=start_date) for _ in range(size)])
+    return sorted([fake.past_datetime(start_date=start_date, tzinfo=timezone.utc) for _ in range(size)])
 
 
 def generate_username(size=1):
@@ -118,6 +125,9 @@ def get_total_time_for_time(df, get_start_fn=None):
     exit_df = df[df["category"] == "exit channel"]["creation_time"]
     total_time += pd.to_timedelta((exit_df.values - enter_df.values).sum())
     total_time = round_num(total_time.total_seconds() / 3600)
+
+    if total_time < 0:
+        raise Exception("study time below zero")
 
     return total_time
 

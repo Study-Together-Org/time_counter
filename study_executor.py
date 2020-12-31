@@ -22,11 +22,11 @@ handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 
 with open("roles.json") as f:
-    roles = hjson.load(f)
+    role_settings = hjson.load(f)
 
 role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) for role_name, role_info in
-                            roles.items()}
-role_names = list(roles.keys())
+                            role_settings.items()}
+role_names = list(role_settings.keys())
 guildID = int(os.getenv("guildID"))
 
 
@@ -39,21 +39,26 @@ class Study(commands.Cog):
         self.sqlalchemy_session = None
         self.redis_client = utilities.get_redis_client()
 
-    def get_role(self, user):
-        user_roles = {r for r in user.roles if r.name not in {"ST! Tester", "@everyone"}}
-        user_study_roles = list(user_roles.intersection(set(self.role_name_to_obj.values())))
-        role = None
-        next_role = None
+    def get_role_status(self, hours_cur_month):
+        cur_role_name = role_names[0]
+        next_role_name = role_names[1]
 
-        if user_study_roles:
-            role = user_study_roles[0]
-            if role.id != self.role_name_to_obj[role_names[-1]].id:
-                # If user has not reached the end
-                next_role = self.role_name_to_obj[role_names[role_names.index(role.name) + 1]]
-        else:
-            next_role = self.role_name_to_obj[role_names[0]]
+        for role_name, begin_hours in role_name_to_begin_hours.items():
+            if begin_hours <= hours_cur_month:
+                cur_role_name = role_name
+            else:
+                next_role_name = role_name
+                break
+        cur_role = self.role_name_to_obj[cur_role_name]
+        # new members
+        if hours_cur_month < role_name_to_begin_hours[cur_role_name]:
+            cur_role = None
 
-        return role, next_role
+        next_role, time_to_next_role = (
+            self.role_name_to_obj[next_role_name], role_name_to_begin_hours[next_role_name] - hours_cur_month) \
+            if cur_role_name != role_names[-1] else (None, None)
+
+        return cur_role, next_role, time_to_next_role
 
     async def get_num_rows(self, table):
         count_row_query = f"""
@@ -161,22 +166,18 @@ class Study(commands.Cog):
         name = user.name + "#" + user.discriminator
         user_id = await self.get_user_id(user)
         hours_cur_month = self.redis_client.zscore("monthly", user_id)
-        role, next_role = self.get_role(user)
-        next_time = None
-
-        if not hours_cur_month:
-            # New member
-            next_time = role_name_to_begin_hours[next_role.name]
-            next_time = utilities.round_num(next_time)
+        role, next_role, time_to_next_role = self.get_role_status(hours_cur_month)
 
         text = f"""
         **User:** ``{name}``\n
         __Study role__ ({utilities.get_time().strftime("%B")})
         **Current study role:** {role.mention if role else "No Role"}
         **Next study role:** {next_role.mention if next_role else "``👑 Highest rank reached``"}
-        **Role promotion in:** ``{(str(next_time) + 'h') if next_time else list(role_name_to_begin_hours.values())[1]}``
-        **Role rank:** ``{'👑 ' if role and role_names.index(role.name) + 1 == {len(roles)} else ''}{role_names.index(role.name) + 1 if role else '0'}/{len(roles)}``
+        **Role rank:** ``{'👑 ' if role and role_names.index(role.name) + 1 == {len(role_settings)} else ''}{role_names.index(role.name) + 1 if role else '0'}/{len(role_settings)}``
         """
+
+        if time_to_next_role:
+            text += f"**Role promotion in:** ``{(str(time_to_next_role) + 'h')}``"
 
         emb = discord.Embed(title=":coffee: Personal rank statistics", description=text)
         await ctx.send(embed=emb)
