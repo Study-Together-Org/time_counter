@@ -63,6 +63,23 @@ class Study(commands.Cog):
         user = await self.bot.get_user(int(discord_user_id))
         return user.name
 
+    async def get_info_from_leaderboard(self, sorted_set_name, start=0, end=-1):
+        if start < 0:
+            start = 0
+
+        id_li = [int(i) for i in self.redis_client.zrevrange(sorted_set_name, start, end)]
+        id_with_score = []
+
+        for neighbor_id in id_li:
+            res = dict()
+            res["discord_user_id"] = \
+                self.sqlalchemy_session.query(User.discord_user_id).filter(User.id == neighbor_id).scalar()
+            res["rank"] = 1 + self.redis_client.zrevrank(sorted_set_name, neighbor_id)
+            res["study_time"] = self.redis_client.zscore(sorted_set_name, neighbor_id)
+            id_with_score.append(res)
+
+        return id_with_score
+
     async def get_neighbor_stats(self, user_id):
         sorted_set_name = "monthly"
         rank = self.redis_client.zrevrank(sorted_set_name, user_id)
@@ -71,18 +88,7 @@ class Study(commands.Cog):
             self.redis_client.zadd(sorted_set_name, {user_id: 0})
             rank = self.redis_client.zrevrank(sorted_set_name, user_id)
 
-        before = max(0, rank - 5)
-        after = rank + 5
-        id_li = [int(i) for i in self.redis_client.zrevrange(sorted_set_name, before, after)]
-        id_with_score = []
-
-        for neighbor_id in id_li:
-            res = dict()
-            res["discord_user_id"] = \
-                self.sqlalchemy_session.query(User.discord_user_id).filter(User.id == neighbor_id).scalar()
-            res["rank"] = self.redis_client.zrevrank(sorted_set_name, neighbor_id)
-            res["study_time"] = self.redis_client.zscore(sorted_set_name, neighbor_id)
-            id_with_score.append(res)
+        id_with_score = await self.get_info_from_leaderboard(sorted_set_name, rank - 5, rank + 5)
 
         return id_with_score
 
@@ -117,7 +123,6 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        # TODO log other actions
         if before.channel == after.channel:
             return
 
@@ -134,11 +139,13 @@ class Study(commands.Cog):
                 if response:
                     print(response)
 
-        entered_time = self.sqlalchemy_session.query(Action.creation_time).filter(Action.user_id == user_id).order_by(
-            Action.creation_time.desc()).limit(1).scalar()
+        entered_time = self.sqlalchemy_session.query(Action.creation_time).filter(Action.user_id == user_id).filter(
+            Action.category.in_(['enter channel', 'exit channel'])).order_by(Action.creation_time.desc()).limit(
+            1).scalar()
 
         for sorted_set_name in models.me_categories:
-            self.redis_client.zincrby(sorted_set_name, utilities.timedelta_to_hours(utilities.get_time() - entered_time), user_id)
+            self.redis_client.zincrby(sorted_set_name,
+                                      utilities.timedelta_to_hours(utilities.get_time() - entered_time), user_id)
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -161,14 +168,14 @@ class Study(commands.Cog):
         name = user.name + "#" + user.discriminator
         user_id = await self.get_user_id(user)
         hours_cur_month = self.redis_client.zscore("monthly", user_id)
-        role, next_role, time_to_next_role = utilities.get_role_status(hours_cur_month)
+        role, next_role, time_to_next_role = utilities.get_role_status(self.role_name_to_obj, hours_cur_month)
 
         text = f"""
         **User:** ``{name}``\n
         __Study role__ ({utilities.get_time().strftime("%B")})
         **Current study role:** {role.mention if role else "No Role"}
         **Next study role:** {next_role.mention if next_role else "``👑 Highest rank reached``"}
-        **Role rank:** ``{'👑 ' if role and utilities.role_names.index(role.name) + 1 == {len(utilities.role_settings)} else ''}{role_names.index(role.name) + 1 if role else '0'}/{len(role_settings)}``
+        **Role rank:** ``{'👑 ' if role and utilities.role_names.index(role.name) + 1 == {len(utilities.role_settings)} else ''}{utilities.role_names.index(role.name) + 1 if role else '0'}/{len(utilities.role_settings)}``
         """
 
         if time_to_next_role:
@@ -178,33 +185,22 @@ class Study(commands.Cog):
         await ctx.send(embed=emb)
 
     @commands.command(aliases=['top'])
-    async def lb(self, ctx, *, page: int = 1, user: discord.Member = None):
-        if page < 1:
-            await ctx.send("You can't look page 0 or a minus number.")
-            return
+    async def lb(self, ctx, *, page: int = None, user: discord.Member = None):
+        if not page:
+            # if the user has not specified someone else
+            if not user:
+                user = ctx.author
 
-        # if the user has not specified someone else
-        if not user:
-            user = ctx.author
+            user_id = await self.get_user_id(user)
+            leaderboard = await self.get_neighbor_stats(user_id)
+        else:
+            if page < 1:
+                await ctx.send("You can't look page 0 or a minus number.")
+                return
 
-        user_id = await self.get_user_id(user)
-
-        # data = self.r()
-        stop = page * 10
-        start = stop - 10
-        # if stop > len(data):
-        #     stop = len(data)
-        # leaderboard = data[start:stop]
-
-        num_users = await self.get_num_rows("user")
-        if start > num_users:
-            await ctx.send("There are not enough pages")
-            return
-
-        leaderboard = await self.get_neighbor_stats(user_id)
-        if not leaderboard:
-            print("no stats")
-            return
+            end = page * 10
+            start = end - 10
+            leaderboard = await self.get_info_from_leaderboard("monthly", start, end)
 
         lb = ''
 
@@ -213,8 +209,8 @@ class Study(commands.Cog):
             lb += f'`{(person["rank"] or 0):>5}.` {person["study_time"]:<06} h {name}\n'
         lb_embed = discord.Embed(title=f'🧗 Study leaderboard ({utilities.get_month()})',
                                  description=lb)
-        # TODO implement paging
-        lb_embed.set_footer(text=f"A rank of 0 means no logged study time yet")
+
+        lb_embed.set_footer(text=f"Type !lb 3 (some number) to see placements from 31 to 40")
         await ctx.send(embed=lb_embed)
 
     @lb.error

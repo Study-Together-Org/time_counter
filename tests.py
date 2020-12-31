@@ -19,5 +19,6 @@ async def test_lb(interface):
     embed = Embed(title=f'🧗 Study leaderboard ({utilities.get_month()})')
     await interface.assert_reply_embed_equals("!lb", embed, attributes_to_check=["title"])
 
+
 if __name__ == "__main__":
     run_dtest_bot(sys.argv, test_collector)

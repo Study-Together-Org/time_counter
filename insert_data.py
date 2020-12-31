@@ -25,10 +25,10 @@ redis_client = utilities.get_redis_client()
 
 # Base = declarative_base()
 
-# user_size = 12003
-# action_size = int(1e6 / 2)  # user_size * 30 * 3 + 1
-user_size = 210
-action_size = user_size * 30 * 3 + 1
+user_size = 12003
+action_size = int(1e6 / 2)  # user_size * 30 * 3 + 1
+# user_size = 210
+# action_size = user_size * 30 * 3 + 1
 
 
 def random_data(df):

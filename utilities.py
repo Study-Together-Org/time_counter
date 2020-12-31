@@ -155,7 +155,7 @@ def get_redis_client():
     return redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
 
-def get_role_status(self, hours_cur_month):
+def get_role_status(role_name_to_obj, hours_cur_month):
     cur_role_name = role_names[0]
     next_role_name = role_names[1]
 
@@ -165,13 +165,13 @@ def get_role_status(self, hours_cur_month):
         else:
             next_role_name = role_name
             break
-    cur_role = self.role_name_to_obj[cur_role_name]
+    cur_role = role_name_to_obj[cur_role_name]
     # new members
     if hours_cur_month < role_name_to_begin_hours[cur_role_name]:
         cur_role = None
 
     next_role, time_to_next_role = (
-        self.role_name_to_obj[next_role_name], role_name_to_begin_hours[next_role_name] - hours_cur_month) \
+        role_name_to_obj[next_role_name], role_name_to_begin_hours[next_role_name] - hours_cur_month) \
         if cur_role_name != role_names[-1] else (None, None)
 
     return cur_role, next_role, time_to_next_role
