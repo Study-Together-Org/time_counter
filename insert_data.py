@@ -58,6 +58,7 @@ def generate_df():
 
 
 def generate_sorted_set():
+    # TODO Get all time data somehow
     filter_time_fn_li = [utilities.get_day_start, utilities.get_month_start, utilities.get_earliest_start]
 
     for sorted_set_name, filter_time_fn in zip(models.me_categories, filter_time_fn_li):

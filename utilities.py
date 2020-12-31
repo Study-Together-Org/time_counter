@@ -6,20 +6,28 @@ from faker import Faker
 import pandas as pd
 import numpy as np
 import redis
-
+import hjson
 # from models import User
-
-Faker.seed(42)
-fake = Faker()
 
 from dotenv import load_dotenv
 
 load_dotenv("dev.env")
 
+Faker.seed(42)
+fake = Faker()
+
 num_uuid = shortuuid.ShortUUID()
 num_uuid.set_alphabet("0123456789")
 
 back_range = 61
+
+
+with open("roles.json") as f:
+    role_settings = hjson.load(f)
+
+role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) for role_name, role_info in
+                            role_settings.items()}
+role_names = list(role_settings.keys())
 
 
 def recreate_db(Base):
@@ -41,14 +49,22 @@ def get_time():
     return now
 
 
-def get_month_start():
-    given_date = datetime.today().date()
-    first_day_of_month = given_date - timedelta(days=int(given_date.strftime("%d")) - 1)
-    return first_day_of_month
+def get_num_days_this_month():
+    return datetime.utcnow().day
 
 
 def get_day_start():
     return datetime.utcnow().date()
+
+
+def get_week_start():
+    return get_day_start() - timedelta(days=get_day_start().weekday() % 7)
+
+
+def get_month_start():
+    given_date = get_day_start()
+    first_day_of_month = given_date - timedelta(days=int(given_date.strftime("%d")) - 1)
+    return first_day_of_month
 
 
 def get_earliest_start():
@@ -134,3 +150,25 @@ def get_total_time_for_time(df, get_start_fn=None):
 
 def get_redis_client():
     return redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+
+
+def get_role_status(self, hours_cur_month):
+    cur_role_name = role_names[0]
+    next_role_name = role_names[1]
+
+    for role_name, begin_hours in role_name_to_begin_hours.items():
+        if begin_hours <= hours_cur_month:
+            cur_role_name = role_name
+        else:
+            next_role_name = role_name
+            break
+    cur_role = self.role_name_to_obj[cur_role_name]
+    # new members
+    if hours_cur_month < role_name_to_begin_hours[cur_role_name]:
+        cur_role = None
+
+    next_role, time_to_next_role = (
+        self.role_name_to_obj[next_role_name], role_name_to_begin_hours[next_role_name] - hours_cur_month) \
+        if cur_role_name != role_names[-1] else (None, None)
+
+    return cur_role, next_role, time_to_next_role

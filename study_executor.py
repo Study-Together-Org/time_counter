@@ -6,7 +6,6 @@ import pandas as pd
 import models
 from models import Action, User
 import discord
-import hjson
 from discord.ext import commands
 from dotenv import load_dotenv
 import utilities
@@ -21,12 +20,7 @@ handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w'
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
-with open("roles.json") as f:
-    role_settings = hjson.load(f)
 
-role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) for role_name, role_info in
-                            role_settings.items()}
-role_names = list(role_settings.keys())
 guildID = int(os.getenv("guildID"))
 
 
@@ -38,27 +32,6 @@ class Study(commands.Cog):
         self.role_name_to_obj = None
         self.sqlalchemy_session = None
         self.redis_client = utilities.get_redis_client()
-
-    def get_role_status(self, hours_cur_month):
-        cur_role_name = role_names[0]
-        next_role_name = role_names[1]
-
-        for role_name, begin_hours in role_name_to_begin_hours.items():
-            if begin_hours <= hours_cur_month:
-                cur_role_name = role_name
-            else:
-                next_role_name = role_name
-                break
-        cur_role = self.role_name_to_obj[cur_role_name]
-        # new members
-        if hours_cur_month < role_name_to_begin_hours[cur_role_name]:
-            cur_role = None
-
-        next_role, time_to_next_role = (
-            self.role_name_to_obj[next_role_name], role_name_to_begin_hours[next_role_name] - hours_cur_month) \
-            if cur_role_name != role_names[-1] else (None, None)
-
-        return cur_role, next_role, time_to_next_role
 
     async def get_num_rows(self, table):
         count_row_query = f"""
@@ -82,21 +55,37 @@ class Study(commands.Cog):
 
     async def get_discord_name(self, discord_user_id):
         if os.getenv("mode") == "test":
+            for special_id in ["tester_human_discord_user_id", "tester_bot_token_discord_user_id"]:
+                if discord_user_id == os.getenv(special_id):
+                    return special_id
+
             return utilities.generate_username()[0]
 
         user = await self.bot.get_user(int(discord_user_id))
         return user.name
 
     async def get_neighbor_stats(self, user_id):
-        response = dict()
+        sorted_set_name = "monthly"
+        rank = self.redis_client.zrevrank(sorted_set_name, user_id)
 
-        for sorted_set_name in models.me_categories:
-            rank = self.redis_client.zrank(sorted_set_name, user_id)
-            before = max(0, rank - 5)
-            after = rank + 5
-            response[sorted_set_name] = self.redis_client.zrange(sorted_set_name, before, after)
+        if rank is None:
+            self.redis_client.zadd(sorted_set_name, {user_id: 0})
+            rank = self.redis_client.zrevrank(sorted_set_name, user_id)
 
-        return response
+        before = max(0, rank - 5)
+        after = rank + 5
+        id_li = [int(i) for i in self.redis_client.zrevrange(sorted_set_name, before, after)]
+        id_with_score = []
+
+        for neighbor_id in id_li:
+            res = dict()
+            res["discord_user_id"] = \
+                self.sqlalchemy_session.query(User.discord_user_id).filter(User.id == neighbor_id).scalar()
+            res["rank"] = self.redis_client.zrevrank(sorted_set_name, neighbor_id)
+            res["study_time"] = self.redis_client.zscore(sorted_set_name, neighbor_id)
+            id_with_score.append(res)
+
+        return id_with_score
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -166,14 +155,14 @@ class Study(commands.Cog):
         name = user.name + "#" + user.discriminator
         user_id = await self.get_user_id(user)
         hours_cur_month = self.redis_client.zscore("monthly", user_id)
-        role, next_role, time_to_next_role = self.get_role_status(hours_cur_month)
+        role, next_role, time_to_next_role = utilities.get_role_status(hours_cur_month)
 
         text = f"""
         **User:** ``{name}``\n
         __Study role__ ({utilities.get_time().strftime("%B")})
         **Current study role:** {role.mention if role else "No Role"}
         **Next study role:** {next_role.mention if next_role else "``👑 Highest rank reached``"}
-        **Role rank:** ``{'👑 ' if role and role_names.index(role.name) + 1 == {len(role_settings)} else ''}{role_names.index(role.name) + 1 if role else '0'}/{len(role_settings)}``
+        **Role rank:** ``{'👑 ' if role and utilities.role_names.index(role.name) + 1 == {len(utilities.role_settings)} else ''}{role_names.index(role.name) + 1 if role else '0'}/{len(role_settings)}``
         """
 
         if time_to_next_role:
@@ -214,10 +203,11 @@ class Study(commands.Cog):
         lb = ''
 
         for person in leaderboard:
-            name = (await self.get_discord_name(person.discord_user_id))[:15]
-            lb += f'`{(person.rank or 0):>5}.` {person.study_time:<06} h {name}\n'
+            name = (await self.get_discord_name(person["discord_user_id"]))[:40]
+            lb += f'`{(person["rank"] or 0):>5}.` {person["study_time"]:<06} h {name}\n'
         lb_embed = discord.Embed(title=f'🧗 Study leaderboard ({utilities.get_month()})',
                                  description=lb)
+        # TODO implement paging
         lb_embed.set_footer(text=f"A rank of 0 means no logged study time yet")
         await ctx.send(embed=lb_embed)
 
@@ -229,61 +219,61 @@ class Study(commands.Cog):
             await ctx.send("Unknown error, please contact owner.")
             print(error)
 
-    # @commands.command()
-    # async def me(self, ctx, user: discord.Member = None):
-    #     if not user:
-    #         user = ctx.author
-    #
-    #     name = user.name + "#" + user.discriminator
-    #
-    # TODO: Redis - get all such data from Redis
-    #     monthly_row = await get_monthly_row(name)
-    #     weekly_row = await get_weekly_row(name)
-    #     daily_row = await get_daily_row(name)
-    #     overall_row = await get_overall_row(name)
-    #     place_total = ("#" + overall_row[0] if overall_row[0] else "No data")
-    #     place_weekly = ("#" + weekly_row[0] if weekly_row[0] else "No data")
-    #     place_daily = ("#" + daily_row[0] if daily_row[0] else "No data")
-    #
-    #     min_total = (
-    #         str(round(int(overall_row[2].replace(',', '')) / 60, 1)) + " h" if overall_row[2] else "No data").ljust(9)
-    #     min_monthly = (
-    #         str(round(int(monthly_row[2].replace(',', '')) / 60, 1)) + " h" if monthly_row[2] else "No data").ljust(9)
-    #     min_weekly = (
-    #         str(round(int(weekly_row[2].replace(',', '')) / 60, 1)) + " h" if weekly_row[2] else "No data").ljust(9)
-    #     min_daily = (
-    #         str(round(int(daily_row[2].replace(',', '')) / 60, 1)) + " h" if daily_row[2] else "No data").ljust(9)
-    #
-    #     average = str(round(float(min_monthly.strip()[:-1]) / datetime.datetime.utcnow().day,
-    #                         1)) + " h" if min_monthly != "No data" else "No data"
-    #
-    # TODO: Redis - get from User DB
-    #     streaks = await get_streaks(name)
-    #     currentStreak = (str(streaks[1]) if streaks else "0")
-    #     longestStreak = (str(streaks[2]) if streaks else "0")
-    #     currentStreak += " day" + ("s" if int(currentStreak) != 1 else "")
-    #     longestStreak += " day" + ("s" if int(longestStreak) != 1 else "")
-    #
-    #     emb = discord.Embed(
-    #         description=f"""
-    #                     ```css\nPersonal study statistics```\n
-    #                     ```
-    #                     glsl\nTimeframe   Hours    Place\n\n
-    #                     Past day:   {min_daily}{place_daily}\n
-    #                     Past week:  {min_weekly}{place_weekly}\n
-    #                     Monthly:    {min_monthly}{place_monthly}\n
-    #                     All-time:   {min_total}{place_total}\n\n
-    #                     Average/day ({self.bot.month}): {average}\n\n
-    #                     Current study streak: {currentStreak}\n
-    #                     Longest study streak: {longestStreak}
-    #                     ```
-    #                     """)
-    #     foot = name
-    #     if self.client.get_guild(self.client.guild_id).get_role(685967088170696715) in self.client.get_guild(
-    #         self.client.guild_id).get_member(user.id).roles:
-    #         foot = "⭐ " + foot
-    #     emb.set_footer(text=foot, icon_url=user.avatar_url)
-    #     await ctx.send(embed=emb)
+    @commands.command()
+    async def me(self, ctx, user: discord.Member = None):
+        if not user:
+            user = ctx.author
+
+        name = user.name + "#" + user.discriminator
+        for sorted_set_name in models.me_categories:
+
+
+        monthly_row = await get_monthly_row(name)
+        weekly_row = await get_weekly_row(name)
+        daily_row = await get_daily_row(name)
+        overall_row = await get_overall_row(name)
+        place_total = ("#" + overall_row[0] if overall_row[0] else "No data")
+        place_weekly = ("#" + weekly_row[0] if weekly_row[0] else "No data")
+        place_daily = ("#" + daily_row[0] if daily_row[0] else "No data")
+
+        min_total = (
+            str(round(int(overall_row[2].replace(',', '')) / 60, 1)) + " h" if overall_row[2] else "No data").ljust(9)
+        min_monthly = (
+            str(round(int(monthly_row[2].replace(',', '')) / 60, 1)) + " h" if monthly_row[2] else "No data").ljust(9)
+        min_weekly = (
+            str(round(int(weekly_row[2].replace(',', '')) / 60, 1)) + " h" if weekly_row[2] else "No data").ljust(9)
+        min_daily = (
+            str(round(int(daily_row[2].replace(',', '')) / 60, 1)) + " h" if daily_row[2] else "No data").ljust(9)
+
+        average = str(round(float(min_monthly.strip()[:-1]) / utilities.get_num_days_this_month(),
+                            1)) + " h" if min_monthly != "No data" else "No data"
+
+        streaks = await get_streaks(name)
+        currentStreak = (str(streaks[1]) if streaks else "0")
+        longestStreak = (str(streaks[2]) if streaks else "0")
+        currentStreak += " day" + ("s" if int(currentStreak) != 1 else "")
+        longestStreak += " day" + ("s" if int(longestStreak) != 1 else "")
+
+        emb = discord.Embed(
+            description=f"""
+                        ```css\nPersonal study statistics```\n
+                        ```
+                        glsl\nTimeframe   Hours    Place\n\n
+                        Past day:   {min_daily}{place_daily}\n
+                        Past week:  {min_weekly}{place_weekly}\n
+                        Monthly:    {min_monthly}{place_monthly}\n
+                        All-time:   {min_total}{place_total}\n\n
+                        Average/day ({self.bot.month}): {average}\n\n
+                        Current study streak: {currentStreak}\n
+                        Longest study streak: {longestStreak}
+                        ```
+                        """)
+        foot = name
+        if self.client.get_guild(self.client.guild_id).get_role(685967088170696715) in self.client.get_guild(
+            self.client.guild_id).get_member(user.id).roles:
+            foot = "⭐ " + foot
+        emb.set_footer(text=foot, icon_url=user.avatar_url)
+        await ctx.send(embed=emb)
 
 
 def setup(bot):

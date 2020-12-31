@@ -9,6 +9,7 @@ test_collector = TestCollector()
 
 @test_collector()
 async def test_p(interface):
+    # TODO test - Write case for new member + each role...
     embed = Embed(title=':coffee: Personal rank statistics')
     await interface.assert_reply_embed_equals("!p", embed, attributes_to_check=["title"])
 
