@@ -117,21 +117,28 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
+        # TODO log other actions
         if before.channel == after.channel:
             return
 
-        User_id = await self.get_user_id(member)
+        user_id = await self.get_user_id(member)
 
         for action_name, channel in [("exit channel", before.channel), ("enter channel", after.channel)]:
             if channel:
                 insert_action = f"""
-                    INSERT INTO action (User_id, category, detail, creation_time)
-                    VALUES ({User_id}, '{action_name}', '{channel.name}', '{utilities.get_time()}');
+                    INSERT INTO action (user_id, category, detail, creation_time)
+                    VALUES ({user_id}, '{action_name}', '{channel.name}', '{utilities.get_time()}');
                 """
                 print(insert_action)
                 response = await self.bot.sql.query(insert_action)
                 if response:
                     print(response)
+
+        entered_time = self.sqlalchemy_session.query(Action.creation_time).filter(Action.user_id == user_id).order_by(
+            Action.creation_time.desc()).limit(1).scalar()
+
+        for sorted_set_name in models.me_categories:
+            self.redis_client.zincrby(sorted_set_name, utilities.timedelta_to_hours(utilities.get_time() - entered_time), user_id)
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -246,20 +253,21 @@ class Study(commands.Cog):
         # currentStreak += " day" + ("s" if int(currentStreak) != 1 else "")
         # longestStreak += " day" + ("s" if int(longestStreak) != 1 else "")
 
+        # TODO adjust the space
         emb = discord.Embed(
             description=f"""
-                        ```css\nPersonal study statistics```\n
-                        ```
-                        glsl\nTimeframe   Hours    Place\n\n
-                        Past day:   {stats["daily"]["study_time"]}h #{stats["daily"]["rank"]}\n
-                        Past week:  {stats["weekly"]["study_time"]}h #{stats["weekly"]["rank"]}\n
-                        Monthly:    {stats["monthly"]["study_time"]}h #{stats["monthly"]["rank"]}\n
-                        All-time:   {0}{0}\n\n
-                        Average/day ({utilities.get_month()}): {average_per_day} h\n\n
-                        Current study streak: {0}\n
-                        Longest study streak: {0}
-                        ```
-                        """)
+            ```css\nPersonal study statistics```\n
+            ```
+            glsl\nTimeframe   Hours    Place\n\n
+            Past day:   {stats["daily"]["study_time"]}h #{stats["daily"]["rank"]}\n
+            Past week:  {stats["weekly"]["study_time"]}h #{stats["weekly"]["rank"]}\n
+            Monthly:    {stats["monthly"]["study_time"]}h #{stats["monthly"]["rank"]}\n
+            All-time:   {0}{0}\n\n
+            Average/day ({utilities.get_month()}): {average_per_day} h\n\n
+            Current study streak: {0}\n
+            Longest study streak: {0}
+            ```
+            """)
         foot = name
 
         emb.set_footer(text=foot, icon_url=user.avatar_url)

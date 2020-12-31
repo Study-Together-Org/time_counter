@@ -21,7 +21,6 @@ num_uuid.set_alphabet("0123456789")
 
 back_range = 61
 
-
 with open("roles.json") as f:
     role_settings = hjson.load(f)
 
@@ -75,6 +74,10 @@ def get_month():
     return datetime.utcnow().strftime("%B")
 
 
+def timedelta_to_hours(td):
+    return round_num(td.total_seconds() / 3600)
+
+
 def round_num(num, ndigits=2):
     return round(num, ndigits=ndigits)
 
@@ -98,7 +101,7 @@ def calc_total_time(data):
     for idx in range(start_idx, end_idx + 1, 2):
         total_time += data[idx + 1]["creation_time"] - data[idx]["creation_time"]
 
-    total_time = round_num(total_time.total_seconds() / 3600)
+    total_time = timedelta_to_hours(total_time)
     return total_time
 
 
@@ -140,7 +143,7 @@ def get_total_time_for_time(df, get_start_fn=None):
     enter_df = df[df["category"] == "enter channel"]["creation_time"]
     exit_df = df[df["category"] == "exit channel"]["creation_time"]
     total_time += pd.to_timedelta((exit_df.values - enter_df.values).sum())
-    total_time = round_num(total_time.total_seconds() / 3600)
+    total_time = timedelta_to_hours(total_time)
 
     if total_time < 0:
         raise Exception("study time below zero")
