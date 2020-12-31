@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from faker import Faker
 import pandas as pd
 import numpy as np
+import redis
 
 # from models import User
 
@@ -18,8 +19,13 @@ load_dotenv("dev.env")
 num_uuid = shortuuid.ShortUUID()
 num_uuid.set_alphabet("0123456789")
 
+back_range = 61
 
-def recreate_db(Base, engine):
+
+def recreate_db(Base):
+    redis_client = get_redis_client()
+    redis_client.flushall()
+    engine = get_engine()
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
 
@@ -39,6 +45,14 @@ def get_month_start():
     given_date = datetime.today().date()
     first_day_of_month = given_date - timedelta(days=int(given_date.strftime("%d")) - 1)
     return first_day_of_month
+
+
+def get_day_start():
+    return datetime.utcnow().date()
+
+
+def get_earliest_start():
+    return datetime.utcnow() - timedelta(days=back_range)
 
 
 def get_month():
@@ -76,7 +90,7 @@ def generate_discord_user_id(size=1, length=18):
     return [fake.random_number(digits=length, fix_len=True) for _ in range(size)]
 
 
-def generate_datetime(size=1, start_date='-30d'):
+def generate_datetime(size=1, start_date=f'-{back_range}d'):
     return sorted([fake.past_datetime(start_date=start_date) for _ in range(size)])
 
 
@@ -84,7 +98,7 @@ def generate_username(size=1):
     return [fake.user_name() for i in range(size)]
 
 
-def get_total_time_cur_month(df):
+def get_total_time_for_time(df, get_start_fn=None):
     df = df.sort_values(by=['creation_time'])
     total_time = timedelta(0)
     start_idx = 0
@@ -92,7 +106,7 @@ def get_total_time_cur_month(df):
 
     if len(df):
         if df["category"].iloc[0] == "exit channel":
-            total_time += df["creation_time"].iloc[0] - pd.to_datetime(get_month_start())
+            total_time += df["creation_time"].iloc[0] - pd.to_datetime(get_start_fn())
             start_idx = 1
 
         if df["category"].iloc[-1] == "enter channel":
@@ -106,3 +120,7 @@ def get_total_time_cur_month(df):
     total_time = round_num(total_time.total_seconds() / 3600)
 
     return total_time
+
+
+def get_redis_client():
+    return redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)

@@ -2,12 +2,15 @@ import logging
 from sqlalchemy.orm import sessionmaker
 import os
 import pandas as pd
+
+import models
 from models import Action, User
 import discord
 import hjson
 from discord.ext import commands
 from dotenv import load_dotenv
 import utilities
+import redis
 import numpy as np
 from sqlalchemy import update
 
@@ -32,9 +35,9 @@ class Study(commands.Cog):
         self.bot = bot
         self.guild = None
         self.role_objs = None
+        self.role_name_to_obj = None
         self.sqlalchemy_session = None
-        # TODO: Redis - init Redis with
-        # Sorted Set: user_id -> study_hours
+        self.redis_client = utilities.get_redis_client()
 
     def get_role(self, user):
         user_roles = {r for r in user.roles if r.name not in {"ST! Tester", "@everyone"}}
@@ -60,7 +63,7 @@ class Study(commands.Cog):
         num_rows = await self.bot.sql.query(count_row_query)
         return list(num_rows[0].values())[0]
 
-    async def get_User_id(self, user):
+    async def get_user_id(self, user):
         select_User_id = f"""
             SELECT id from user WHERE discord_user_id = {user.id}
         """
@@ -80,16 +83,14 @@ class Study(commands.Cog):
         return user.name
 
     async def get_neighbor_stats(self, user_id):
-        user_res = self.sqlalchemy_session.query(User).filter(User.id == user_id).all()
-        if not user_res:
-            return
+        response = dict()
 
-        user = user_res[0]
-        before = self.sqlalchemy_session.query(User).filter(User.study_time > (user.study_time or 0)).order_by(
-            User.study_time.desc())[-5:]
-        after = self.sqlalchemy_session.query(User).filter(User.study_time <= (user.study_time or 0)).filter(
-            User.id != user_id).order_by(User.study_time.desc())[:5]
-        response = before + [user] + after
+        for sorted_set_name in models.me_categories:
+            rank = self.redis_client.zrank(sorted_set_name, user_id)
+            before = max(0, rank - 5)
+            after = rank + 5
+            response[sorted_set_name] = self.redis_client.zrange(sorted_set_name, before, after)
+
         return response
 
     @commands.Cog.listener()
@@ -100,7 +101,6 @@ class Study(commands.Cog):
             if message.content == '!p':
                 await self.p(ctx, message.author)
             elif message.content == '!lb':
-                await self.r()
                 await self.lb(ctx=ctx, user=message.author)
 
     async def fetch(self):
@@ -127,7 +127,7 @@ class Study(commands.Cog):
         if before.channel == after.channel:
             return
 
-        User_id = await self.get_User_id(member)
+        User_id = await self.get_user_id(member)
 
         for action_name, channel in [("exit channel", before.channel), ("enter channel", after.channel)]:
             if channel:
@@ -151,43 +151,6 @@ class Study(commands.Cog):
         if response:
             print(response)
 
-    async def get_time_cur_month(self, User_id):
-        get_cur_month_data_query = f"""
-            SELECT study_time FROM user
-            WHERE id = {User_id}
-        """
-        print(get_cur_month_data_query)
-        response = await self.bot.sql.query(get_cur_month_data_query)
-        return list(response[0].values())[0]
-
-    @commands.command(aliases=["refresh"])
-    # @profile
-    async def r(self, ctx=None, user: discord.Member = None):
-        query = self.sqlalchemy_session.query(Action.user_id, Action.category, Action.creation_time) \
-            .filter(Action.category.in_(['enter channel', 'exit channel'])) \
-            .filter(Action.creation_time >= utilities.get_month_start())
-        response = pd.read_sql(query.statement, self.sqlalchemy_session.bind)
-        agg = response.groupby("user_id", as_index=False).apply(utilities.get_total_time_cur_month)
-        agg.columns = [agg.columns[0], "study_time"]
-        # TODO: use user' join date to break ties
-        agg["rank"] = agg.sort_values(by=["study_time", "user_id"], ascending=False).reset_index().sort_values(
-            "index").index + 1
-        agg.to_sql('temp_table', self.sqlalchemy_session.bind, if_exists='replace', index=False)
-
-        update_statement = """
-            UPDATE user JOIN temp_table ON user.id = temp_table.user_id
-            SET user.study_time = temp_table.study_time, user.rank = temp_table.rank
-            WHERE user.id = temp_table.user_id
-        """
-
-        self.sqlalchemy_session.bind.execute(update_statement)
-        print("refreshed")
-        await ctx.send("refreshed!")
-
-    async def sleep(self):
-        import time
-        time.sleep(5)
-
     @commands.command(aliases=["rank"])
     # @profile
     async def p(self, ctx, user: discord.Member = None):
@@ -196,11 +159,8 @@ class Study(commands.Cog):
             user = ctx.author
 
         name = user.name + "#" + user.discriminator
-        User_id = await self.get_User_id(user)
-
-        # TODO: Redis - read from Redis
-        hours_cur_month = await self.get_time_cur_month(User_id)
-
+        user_id = await self.get_user_id(user)
+        hours_cur_month = self.redis_client.zscore("monthly", user_id)
         role, next_role = self.get_role(user)
         next_time = None
 
@@ -231,7 +191,7 @@ class Study(commands.Cog):
         if not user:
             user = ctx.author
 
-        user_id = await self.get_User_id(user)
+        user_id = await self.get_user_id(user)
 
         # data = self.r()
         stop = page * 10
@@ -245,7 +205,6 @@ class Study(commands.Cog):
             await ctx.send("There are not enough pages")
             return
 
-        # TODO: Redis - read range from Redis
         leaderboard = await self.get_neighbor_stats(user_id)
         if not leaderboard:
             print("no stats")
@@ -276,11 +235,8 @@ class Study(commands.Cog):
     #
     #     name = user.name + "#" + user.discriminator
     #
-<<<<<<< Updated upstream
-=======
     # TODO: Redis - get all such data from Redis
     #     monthly_row = await get_monthly_row(name)
->>>>>>> Stashed changes
     #     weekly_row = await get_weekly_row(name)
     #     daily_row = await get_daily_row(name)
     #     overall_row = await get_overall_row(name)
