@@ -20,7 +20,6 @@ handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w'
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
-
 guildID = int(os.getenv("guildID"))
 
 
@@ -225,53 +224,44 @@ class Study(commands.Cog):
             user = ctx.author
 
         name = user.name + "#" + user.discriminator
+        user_id = await self.get_user_id(user)
+
+        stats = dict()
+
         for sorted_set_name in models.me_categories:
+            stats[sorted_set_name] = {
+                "rank": self.redis_client.zrevrank(sorted_set_name, user_id),
+                "study_time": self.redis_client.zscore(sorted_set_name, user_id)
+            }
 
+        # TODO get overall stats
+        # overall_row = await get_overall_row(name)
+        # place_total = ("#" + overall_row[0] if overall_row[0] else "No data")
 
-        monthly_row = await get_monthly_row(name)
-        weekly_row = await get_weekly_row(name)
-        daily_row = await get_daily_row(name)
-        overall_row = await get_overall_row(name)
-        place_total = ("#" + overall_row[0] if overall_row[0] else "No data")
-        place_weekly = ("#" + weekly_row[0] if weekly_row[0] else "No data")
-        place_daily = ("#" + daily_row[0] if daily_row[0] else "No data")
+        average_per_day = utilities.round_num(stats["monthly"]["study_time"] / utilities.get_num_days_this_month())
 
-        min_total = (
-            str(round(int(overall_row[2].replace(',', '')) / 60, 1)) + " h" if overall_row[2] else "No data").ljust(9)
-        min_monthly = (
-            str(round(int(monthly_row[2].replace(',', '')) / 60, 1)) + " h" if monthly_row[2] else "No data").ljust(9)
-        min_weekly = (
-            str(round(int(weekly_row[2].replace(',', '')) / 60, 1)) + " h" if weekly_row[2] else "No data").ljust(9)
-        min_daily = (
-            str(round(int(daily_row[2].replace(',', '')) / 60, 1)) + " h" if daily_row[2] else "No data").ljust(9)
-
-        average = str(round(float(min_monthly.strip()[:-1]) / utilities.get_num_days_this_month(),
-                            1)) + " h" if min_monthly != "No data" else "No data"
-
-        streaks = await get_streaks(name)
-        currentStreak = (str(streaks[1]) if streaks else "0")
-        longestStreak = (str(streaks[2]) if streaks else "0")
-        currentStreak += " day" + ("s" if int(currentStreak) != 1 else "")
-        longestStreak += " day" + ("s" if int(longestStreak) != 1 else "")
+        # streaks = await get_streaks(name)
+        # currentStreak = (str(streaks[1]) if streaks else "0")
+        # longestStreak = (str(streaks[2]) if streaks else "0")
+        # currentStreak += " day" + ("s" if int(currentStreak) != 1 else "")
+        # longestStreak += " day" + ("s" if int(longestStreak) != 1 else "")
 
         emb = discord.Embed(
             description=f"""
                         ```css\nPersonal study statistics```\n
                         ```
                         glsl\nTimeframe   Hours    Place\n\n
-                        Past day:   {min_daily}{place_daily}\n
-                        Past week:  {min_weekly}{place_weekly}\n
-                        Monthly:    {min_monthly}{place_monthly}\n
-                        All-time:   {min_total}{place_total}\n\n
-                        Average/day ({self.bot.month}): {average}\n\n
-                        Current study streak: {currentStreak}\n
-                        Longest study streak: {longestStreak}
+                        Past day:   {stats["daily"]["study_time"]}h #{stats["daily"]["rank"]}\n
+                        Past week:  {stats["weekly"]["study_time"]}h #{stats["weekly"]["rank"]}\n
+                        Monthly:    {stats["monthly"]["study_time"]}h #{stats["monthly"]["rank"]}\n
+                        All-time:   {0}{0}\n\n
+                        Average/day ({utilities.get_month()}): {average_per_day} h\n\n
+                        Current study streak: {0}\n
+                        Longest study streak: {0}
                         ```
                         """)
         foot = name
-        if self.client.get_guild(self.client.guild_id).get_role(685967088170696715) in self.client.get_guild(
-            self.client.guild_id).get_member(user.id).roles:
-            foot = "⭐ " + foot
+
         emb.set_footer(text=foot, icon_url=user.avatar_url)
         await ctx.send(embed=emb)
 

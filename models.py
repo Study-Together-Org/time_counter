@@ -19,7 +19,7 @@ action_categories = [
     "enter channel", "exit channel", "start screenshare", "end screenshare", "start video", "end video", "start voice",
     "end voice", "start timer", "end timer"
 ]
-me_categories = ["daily", "monthly", "all_time"]
+me_categories = ["daily", "weekly", "monthly", "all_time"]
 
 
 class User(Base):
