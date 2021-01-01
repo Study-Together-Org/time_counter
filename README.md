@@ -6,8 +6,13 @@
 
 # How to Install
 (optional) Create a virtual environment
-
 `pip3 install -r requirements.txt`
+Set up MySQL database and Redis
 
 (optional) Get credentials from the dev team
 (optional) If you are using PyCharm, install [.env files support](https://plugins.jetbrains.com/plugin/9525--env-files-support) for env file autocompletion.
+
+# Quick Start
+`insert_data.py`
+
+`time_counter.py`
