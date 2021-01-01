@@ -21,12 +21,12 @@ action_categories = [
     "end voice", "start timer", "end timer"
 ]
 
-rank_categories = [
-    f"{utilities.get_day_start()}_daily",
-    f"{utilities.get_week_start()}_weekly",
-    f"{utilities.get_month()}_monthly",
-    "all_time"
-]
+rank_categories = {
+    "daily": f"{utilities.get_day_start()}_daily",
+    "weekly": f"{utilities.get_week_start()}_weekly",
+    "monthly": f"{utilities.get_month()}_monthly",
+    "all_time": "all_time"
+}
 
 
 class User(Base):

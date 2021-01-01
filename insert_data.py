@@ -61,7 +61,7 @@ def generate_sorted_set():
     # TODO Get all time data somehow
     filter_time_fn_li = [utilities.get_day_start, utilities.get_week_start, utilities.get_month_start, utilities.get_earliest_start]
 
-    for sorted_set_name, filter_time_fn in zip(models.me_categories, filter_time_fn_li):
+    for sorted_set_name, filter_time_fn in zip(models.rank_categories, filter_time_fn_li):
         query = sqlalchemy_session.query(Action.user_id, Action.category, Action.creation_time) \
             .filter(Action.category.in_(['enter channel', 'exit channel']))
         if filter_time_fn:

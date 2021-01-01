@@ -4,7 +4,7 @@ import os
 import pandas as pd
 
 import models
-from models import Action, User
+from models import Action, User, rank_categories
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -83,7 +83,7 @@ class Study(commands.Cog):
         return id_with_score
 
     async def get_neighbor_stats(self, user_id):
-        sorted_set_name = "monthly"
+        sorted_set_name = rank_categories["monthly"]
         rank = self.redis_client.zrevrank(sorted_set_name, user_id)
 
         if rank is None:
@@ -100,9 +100,11 @@ class Study(commands.Cog):
         if message.author.bot:
             ctx = await self.bot.get_context(message)
             if message.content == '!p':
-                await self.p(ctx, message.author)
+                await self.p(ctx, user=message.author)
             elif message.content == '!lb':
                 await self.lb(ctx=ctx, user=message.author)
+            elif message.content == '!me':
+                await self.me(ctx=ctx, user=message.author)
 
     async def fetch(self):
         if not self.guild:
@@ -145,7 +147,7 @@ class Study(commands.Cog):
             Action.category.in_(['enter channel', 'exit channel'])).order_by(Action.creation_time.desc()).limit(
             1).scalar()
 
-        for sorted_set_name in models.me_categories:
+        for sorted_set_name in rank_categories.values():
             self.redis_client.zincrby(sorted_set_name,
                                       utilities.timedelta_to_hours(utilities.get_time() - entered_time), user_id)
 
@@ -169,7 +171,7 @@ class Study(commands.Cog):
 
         name = user.name + "#" + user.discriminator
         user_id = await self.get_user_id(user)
-        hours_cur_month = self.redis_client.zscore("monthly", user_id)
+        hours_cur_month = self.redis_client.zscore(rank_categories["monthly"], user_id)
         role, next_role, time_to_next_role = utilities.get_role_status(self.role_name_to_obj, hours_cur_month)
 
         text = f"""
@@ -183,7 +185,7 @@ class Study(commands.Cog):
         if time_to_next_role:
             text += f"**Role promotion in:** ``{(str(time_to_next_role) + 'h')}``"
 
-        emb = discord.Embed(title=":coffee: Personal rank statistics", description=text)
+        emb = discord.Embed(title=":coffee: Personal Rank Statistics", description=text)
         await ctx.send(embed=emb)
 
     @commands.command(aliases=['top'])
@@ -202,14 +204,14 @@ class Study(commands.Cog):
 
             end = page * 10
             start = end - 10
-            leaderboard = await self.get_info_from_leaderboard("monthly", start, end)
+            leaderboard = await self.get_info_from_leaderboard(rank_categories["monthly"], start, end)
 
         lb = ''
 
         for person in leaderboard:
             name = (await self.get_discord_name(person["discord_user_id"]))[:40]
             lb += f'`{(person["rank"] or 0):>5}.` {person["study_time"]:<06} h {name}\n'
-        lb_embed = discord.Embed(title=f'🧗 Study leaderboard ({utilities.get_month()})',
+        lb_embed = discord.Embed(title=f'🧗 Study Leaderboard ({utilities.get_month()})',
                                  description=lb)
 
         lb_embed.set_footer(text=f"Type !lb 3 (some number) to see placements from 31 to 40")
@@ -233,7 +235,7 @@ class Study(commands.Cog):
 
         stats = dict()
 
-        for sorted_set_name in models.me_categories:
+        for sorted_set_name in rank_categories.values():
             stats[sorted_set_name] = {
                 "rank": self.redis_client.zrevrank(sorted_set_name, user_id),
                 "study_time": self.redis_client.zscore(sorted_set_name, user_id)
@@ -243,7 +245,7 @@ class Study(commands.Cog):
         # overall_row = await get_overall_row(name)
         # place_total = ("#" + overall_row[0] if overall_row[0] else "No data")
 
-        average_per_day = utilities.round_num(stats["monthly"]["study_time"] / utilities.get_num_days_this_month())
+        average_per_day = utilities.round_num(stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
 
         # streaks = await get_streaks(name)
         # currentStreak = (str(streaks[1]) if streaks else "0")
@@ -253,13 +255,13 @@ class Study(commands.Cog):
 
         # TODO adjust the space
         emb = discord.Embed(
+            title=f'Personal Study Statistics',
             description=f"""
-            ```css\nPersonal study statistics```\n
-            ```
+            ```css\n```\n```
             glsl\nTimeframe   Hours    Place\n\n
-            Past day:   {stats["daily"]["study_time"]}h #{stats["daily"]["rank"]}\n
-            Past week:  {stats["weekly"]["study_time"]}h #{stats["weekly"]["rank"]}\n
-            Monthly:    {stats["monthly"]["study_time"]}h #{stats["monthly"]["rank"]}\n
+            Past day:   {stats[rank_categories["daily"]]["study_time"]}h #{stats[rank_categories["daily"]]["rank"]}\n
+            Past week:  {stats[rank_categories["weekly"]]["study_time"]}h #{stats[rank_categories["weekly"]]["rank"]}\n
+            Monthly:    {stats[rank_categories["monthly"]]["study_time"]}h #{stats[rank_categories["monthly"]]["rank"]}\n
             All-time:   {0}{0}\n\n
             Average/day ({utilities.get_month()}): {average_per_day} h\n\n
             Current study streak: {0}\n
