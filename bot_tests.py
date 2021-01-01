@@ -3,6 +3,7 @@ from distest import TestCollector
 from distest import run_dtest_bot
 from discord import Embed
 import utilities
+from freezegun import freeze_time
 
 test_collector = TestCollector()
 
@@ -22,3 +23,4 @@ async def test_lb(interface):
 
 if __name__ == "__main__":
     run_dtest_bot(sys.argv, test_collector)
+    test_get_day_start()

@@ -45,7 +45,7 @@ def generate_df():
     user_df['discord_user_id'] = utilities.generate_discord_user_id(user_size)
 
     action_df = pd.DataFrame(columns=['user_id', 'category', 'detail', 'creation_time'])
-    # It deliberately makes the last member not have any action
+    # It deliberately makes the last member have 0 action
     action_df["user_id"] = np.random.randint(low=1, high=user_size, size=action_size)
 
     action_df = action_df.groupby("user_id").apply(random_data)
@@ -68,7 +68,7 @@ def generate_sorted_set():
             query = query.filter(Action.creation_time >= filter_time_fn())
 
         response = pd.read_sql(query.statement, sqlalchemy_session.bind)
-        agg = response.groupby("user_id", as_index=False).apply(lambda x: utilities.get_total_time_for_time(x, filter_time_fn))
+        agg = response.groupby("user_id", as_index=False).apply(lambda x: utilities.get_total_time_for_window(x, filter_time_fn))
         agg.columns = [agg.columns[0], "study_time"]
         agg.set_index("user_id", inplace=True)
         to_insert = agg["study_time"].to_dict()

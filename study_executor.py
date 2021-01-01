@@ -22,6 +22,8 @@ logger.addHandler(handler)
 
 guildID = int(os.getenv("guildID"))
 
+# TODO implement redis auto reset for change of day, week, and month
+# an external bash script that resets redis
 
 class Study(commands.Cog):
     def __init__(self, bot):
@@ -237,7 +239,7 @@ class Study(commands.Cog):
                 "study_time": self.redis_client.zscore(sorted_set_name, user_id)
             }
 
-        # TODO get overall stats
+        # TODO Get all time data somehow
         # overall_row = await get_overall_row(name)
         # place_total = ("#" + overall_row[0] if overall_row[0] else "No data")
 

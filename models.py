@@ -1,10 +1,11 @@
 import os
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import ForeignKey, Column, INTEGER, String
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.mysql import DATETIME, FLOAT, INTEGER
 
 from dotenv import load_dotenv
+from sqlalchemy import ForeignKey, Column, String
+from sqlalchemy.dialects.mysql import DATETIME, INTEGER
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+
 import utilities
 
 load_dotenv("dev.env")
@@ -19,7 +20,13 @@ action_categories = [
     "enter channel", "exit channel", "start screenshare", "end screenshare", "start video", "end video", "start voice",
     "end voice", "start timer", "end timer"
 ]
-me_categories = ["daily", "weekly", "monthly", "all_time"]
+
+rank_categories = [
+    f"{utilities.get_day_start()}_daily",
+    f"{utilities.get_week_start()}_weekly",
+    f"{utilities.get_month()}_monthly",
+    "all_time"
+]
 
 
 class User(Base):

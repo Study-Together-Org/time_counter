@@ -53,7 +53,13 @@ def get_num_days_this_month():
 
 
 def get_day_start():
-    return datetime.utcnow().date()
+    dt = datetime.combine(datetime.utcnow().date(), datetime.min.time())
+    offset = timedelta(hours=17)
+
+    if datetime.utcnow() - dt < offset:
+        offset -= timedelta(days=1)
+
+    return dt + offset
 
 
 def get_week_start():
@@ -121,10 +127,10 @@ def generate_datetime(size=1, start_date=f'-{back_range}d'):
 
 
 def generate_username(size=1):
-    return [fake.user_name() for i in range(size)]
+    return [fake.user_name() for _ in range(size)]
 
 
-def get_total_time_for_time(df, get_start_fn=None):
+def get_total_time_for_window(df, get_start_fn=None):
     df = df.sort_values(by=['creation_time'])
     total_time = timedelta(0)
     start_idx = 0
