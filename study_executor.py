@@ -22,6 +22,7 @@ logger.addHandler(handler)
 
 guildID = int(os.getenv("guildID"))
 
+
 # TODO implement redis auto reset for change of day, week, and month
 # an external bash script that resets redis
 
@@ -101,10 +102,10 @@ class Study(commands.Cog):
             ctx = await self.bot.get_context(message)
             if message.content == '!p':
                 await self.p(ctx, user=message.author)
-            elif message.content == '!lb':
-                await self.lb(ctx=ctx, user=message.author)
             elif message.content == '!me':
                 await self.me(ctx=ctx, user=message.author)
+            elif message.content[:3] == '!lb' and (message.content[3:] == "" or (message.content[3] == " " and message.content[4:].isnumeric())):
+                await self.lb(ctx=ctx, user=message.author)
 
     async def fetch(self):
         if not self.guild:
@@ -185,6 +186,7 @@ class Study(commands.Cog):
         if time_to_next_role:
             text += f"**Role promotion in:** ``{(str(time_to_next_role) + 'h')}``"
 
+        # TODO extract titles out to json
         emb = discord.Embed(title=":coffee: Personal Rank Statistics", description=text)
         await ctx.send(embed=emb)
 
@@ -245,7 +247,8 @@ class Study(commands.Cog):
         # overall_row = await get_overall_row(name)
         # place_total = ("#" + overall_row[0] if overall_row[0] else "No data")
 
-        average_per_day = utilities.round_num(stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
+        average_per_day = utilities.round_num(
+            stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
 
         # streaks = await get_streaks(name)
         # currentStreak = (str(streaks[1]) if streaks else "0")
