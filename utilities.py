@@ -21,8 +21,10 @@ num_uuid.set_alphabet("0123456789")
 
 back_range = 61
 
-with open("roles.json") as f:
-    role_settings = hjson.load(f)
+with open("config.hjson") as f:
+    config = hjson.load(f)
+
+role_settings = config["roles"]
 
 role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) for role_name, role_info in
                             role_settings.items()}
@@ -54,7 +56,7 @@ def get_num_days_this_month():
 
 def get_day_start():
     dt = datetime.combine(datetime.utcnow().date(), datetime.min.time())
-    offset = timedelta(hours=int(os.getenv("update_time")[:2]))
+    offset = timedelta(hours=config["business"]["update_time"])
 
     if datetime.utcnow() - dt < offset:
         offset -= timedelta(days=1)

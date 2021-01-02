@@ -23,9 +23,6 @@ logger.addHandler(handler)
 guildID = int(os.getenv("guildID"))
 
 
-# TODO implement redis auto reset for change of day, week, and month
-# an external bash script that resets redis
-
 class Study(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -170,7 +167,8 @@ class Study(commands.Cog):
                 self.redis_client.zincrby(sorted_set_name,
                                           utilities.timedelta_to_hours(utilities.get_time() - entered_time), user_id)
 
-            if self.redis_client.zscore(rank_categories["daily"], user_id) > int(os.getenv("min_streak_time")):
+            if self.redis_client.zscore(rank_categories["daily"], user_id) > utilities.config["business"][
+                "min_streak_time"]:
                 streak_name = "has_streak_today_" + str(user_id)
                 if not self.redis_client.exists(streak_name):
                     await self.add_streak(user_id)
@@ -212,7 +210,7 @@ class Study(commands.Cog):
             text += f"**Role promotion in:** ``{(str(time_to_next_role) + 'h')}``"
 
         # TODO extract titles out to json
-        emb = discord.Embed(title=":coffee: Personal Rank Statistics", description=text)
+        emb = discord.Embed(title=utilities.config["embed_titles"]["p"], description=text)
         await ctx.send(embed=emb)
 
     @commands.command(aliases=['top'])
@@ -238,7 +236,7 @@ class Study(commands.Cog):
         for person in leaderboard:
             name = (await self.get_discord_name(person["discord_user_id"]))[:40]
             lb += f'`{(person["rank"] or 0):>5}.` {person["study_time"]:<06} h {name}\n'
-        lb_embed = discord.Embed(title=f'🧗 Study Leaderboard ({utilities.get_month()})',
+        lb_embed = discord.Embed(title=f'{utilities.config["embed_titles"]["lb"]} ({utilities.get_month()})',
                                  description=lb)
 
         lb_embed.set_footer(text=f"Type !lb 3 (some number) to see placements from 31 to 40")
@@ -283,7 +281,7 @@ class Study(commands.Cog):
 
         # TODO adjust the space
         emb = discord.Embed(
-            title=f'Personal Study Statistics',
+            title=utilities.config["embed_titles"]["me"],
             description=f"""
             ```css\n```\n```
             glsl\nTimeframe   Hours    Place\n\n
