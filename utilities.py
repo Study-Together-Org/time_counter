@@ -54,12 +54,16 @@ def get_num_days_this_month():
 
 def get_day_start():
     dt = datetime.combine(datetime.utcnow().date(), datetime.min.time())
-    offset = timedelta(hours=17)
+    offset = timedelta(hours=int(os.getenv("update_time")[:2]))
 
     if datetime.utcnow() - dt < offset:
         offset -= timedelta(days=1)
 
     return dt + offset
+
+
+def get_tomorrow_start():
+    return get_day_start() + timedelta(days=1)
 
 
 def get_week_start():

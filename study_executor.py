@@ -103,7 +103,8 @@ class Study(commands.Cog):
                 await self.p(ctx, user=message.author)
             elif message.content == '!me':
                 await self.me(ctx=ctx, user=message.author)
-            elif message.content[:3] == '!lb' and (message.content[3:] == "" or (message.content[3] == " " and message.content[4:].isnumeric())):
+            elif message.content[:3] == '!lb' and (
+                message.content[3:] == "" or (message.content[3] == " " and message.content[4:].isnumeric())):
                 await self.lb(ctx=ctx, user=message.author)
 
     async def fetch(self):
@@ -132,17 +133,20 @@ class Study(commands.Cog):
         if before.channel == after.channel:
             if before.self_video != after.self_video:
                 category = ("start" if after.self_video else "end") + " video"
-                video_change = Action(user_id=user_id, category=category, detail=after.channel.id, creation_time=utilities.get_time())
+                video_change = Action(user_id=user_id, category=category, detail=after.channel.id,
+                                      creation_time=utilities.get_time())
                 self.sqlalchemy_session.add(video_change)
 
             if before.self_stream != after.self_stream:
                 category = ("start" if after.self_stream else "end") + " stream"
-                stream_change = Action(user_id=user_id, category=category, detail=after.channel.id, creation_time=utilities.get_time())
+                stream_change = Action(user_id=user_id, category=category, detail=after.channel.id,
+                                       creation_time=utilities.get_time())
                 self.sqlalchemy_session.add(stream_change)
 
             if before.self_mute != after.self_mute:
                 category = ("start" if not after.self_mute else "end") + " voice"
-                stream_change = Action(user_id=user_id, category=category, detail=after.channel.id, creation_time=utilities.get_time())
+                stream_change = Action(user_id=user_id, category=category, detail=after.channel.id,
+                                       creation_time=utilities.get_time())
                 self.sqlalchemy_session.add(stream_change)
 
             self.sqlalchemy_session.commit()
@@ -165,6 +169,13 @@ class Study(commands.Cog):
             for sorted_set_name in rank_categories.values():
                 self.redis_client.zincrby(sorted_set_name,
                                           utilities.timedelta_to_hours(utilities.get_time() - entered_time), user_id)
+
+            if self.redis_client.zscore(rank_categories["daily"], user_id) > int(os.getenv("min_streak_time")):
+                streak_name = "has_streak_today_" + str(user_id)
+                if not self.redis_client.exists(streak_name):
+                    await self.add_streak(user_id)
+                self.redis_client.set(streak_name, 1)
+                self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -289,6 +300,13 @@ class Study(commands.Cog):
 
         emb.set_footer(text=foot, icon_url=user.avatar_url)
         await ctx.send(embed=emb)
+
+    async def add_streak(self, user_id):
+        user = self.sqlalchemy_session.query(User).filter(User.id == user_id).all()[0]
+        user.current_streak += 1
+        if user.longest_streak == user.current_streak:
+            user.longest_streak += 1
+        self.sqlalchemy_session.commit()
 
 
 def setup(bot):
