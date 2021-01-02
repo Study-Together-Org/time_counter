@@ -111,13 +111,19 @@ def calc_total_time(data):
     return total_time
 
 
+def generate_random_number(size=1, length=18):
+    res = [fake.random_number(digits=length, fix_len=True) for _ in range(size)]
+    return res
+
+
 def generate_discord_user_id(size=1, length=18):
     res = []
 
     if size >= 2:
         res += [int(os.getenv("tester_human_discord_user_id")), int(os.getenv("tester_bot_token_discord_user_id"))]
+        size -= 2
 
-    res += [fake.random_number(digits=length, fix_len=True) for _ in range(size)]
+    res += generate_random_number(size, length)
 
     return res
 

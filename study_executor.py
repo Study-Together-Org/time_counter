@@ -97,8 +97,7 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        # self.p()
-        if message.author.bot:
+        if message.author.bot and os.getenv("mode") == "test":
             ctx = await self.bot.get_context(message)
             if message.content == '!p':
                 await self.p(ctx, user=message.author)
@@ -128,29 +127,44 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        if before.channel == after.channel:
-            return
-
         user_id = await self.get_user_id(member)
 
-        for action_name, channel in [("exit channel", before.channel), ("enter channel", after.channel)]:
-            if channel:
-                insert_action = f"""
-                    INSERT INTO action (user_id, category, detail, creation_time)
-                    VALUES ({user_id}, '{action_name}', '{channel.name}', '{utilities.get_time()}');
-                """
-                print(insert_action)
-                response = await self.bot.sql.query(insert_action)
-                if response:
-                    print(response)
+        if before.channel == after.channel:
+            if before.self_video != after.self_video:
+                category = ("start" if after.self_video else "end") + " video"
+                video_change = Action(user_id=user_id, category=category, detail=after.channel.id, creation_time=utilities.get_time())
+                self.sqlalchemy_session.add(video_change)
 
-        entered_time = self.sqlalchemy_session.query(Action.creation_time).filter(Action.user_id == user_id).filter(
-            Action.category.in_(['enter channel', 'exit channel'])).order_by(Action.creation_time.desc()).limit(
-            1).scalar()
+            if before.self_stream != after.self_stream:
+                category = ("start" if after.self_stream else "end") + " stream"
+                stream_change = Action(user_id=user_id, category=category, detail=after.channel.id, creation_time=utilities.get_time())
+                self.sqlalchemy_session.add(stream_change)
 
-        for sorted_set_name in rank_categories.values():
-            self.redis_client.zincrby(sorted_set_name,
-                                      utilities.timedelta_to_hours(utilities.get_time() - entered_time), user_id)
+            if before.self_mute != after.self_mute:
+                category = ("start" if not after.self_mute else "end") + " voice"
+                stream_change = Action(user_id=user_id, category=category, detail=after.channel.id, creation_time=utilities.get_time())
+                self.sqlalchemy_session.add(stream_change)
+
+            self.sqlalchemy_session.commit()
+        else:
+            for action_name, channel in [("exit channel", before.channel), ("enter channel", after.channel)]:
+                if channel:
+                    insert_action = f"""
+                        INSERT INTO action (user_id, category, detail, creation_time)
+                        VALUES ({user_id}, '{action_name}', '{channel.id}', '{utilities.get_time()}');
+                    """
+                    print(insert_action)
+                    response = await self.bot.sql.query(insert_action)
+                    if response:
+                        print(response)
+
+            entered_time = self.sqlalchemy_session.query(Action.creation_time).filter(Action.user_id == user_id).filter(
+                Action.category.in_(['enter channel', 'exit channel'])).order_by(Action.creation_time.desc()).limit(
+                1).scalar()
+
+            for sorted_set_name in rank_categories.values():
+                self.redis_client.zincrby(sorted_set_name,
+                                          utilities.timedelta_to_hours(utilities.get_time() - entered_time), user_id)
 
     @commands.Cog.listener()
     async def on_member_join(self, member):

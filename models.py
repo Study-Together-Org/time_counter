@@ -17,8 +17,9 @@ DATETIME = DATETIME(fsp=int(os.getenv("time_fsp")))
 Base = declarative_base()
 
 action_categories = [
-    "enter channel", "exit channel", "start screenshare", "end screenshare", "start video", "end video", "start voice",
-    "end voice", "start timer", "end timer"
+    "enter channel", "exit channel", "start stream", "end stream", "start video", "end video", "start voice",
+    "end voice",
+    # "start timer", "end timer"
 ]
 
 rank_categories = {
