@@ -41,7 +41,7 @@ def recreate_db(Base):
 
 def get_engine(echo=True):
     return create_engine(
-        f'mysql+pymysql://{os.getenv("user")}:{os.getenv("password")}@{os.getenv("host")}/{os.getenv("database")}',
+        f'mysql+pymysql://{os.getenv("sql_user")}:{os.getenv("sql_password")}@{os.getenv("sql_host")}/{os.getenv("sql_database")}',
         echo=echo)
 
 
@@ -170,7 +170,7 @@ def get_total_time_for_window(df, get_start_fn=None):
 
 
 def get_redis_client():
-    return redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    return redis.Redis(host=os.getenv("redis_host"), port=os.getenv("redis_port"), db=int(os.getenv("redis_db_num")), decode_responses=True)
 
 
 def get_role_status(role_name_to_obj, hours_cur_month):

@@ -11,10 +11,10 @@ class MySQL:
     async def init(self):
         if self.client.pool is None:
             self.client.pool = await aiomysql.create_pool(
-                host=os.getenv("host"),
-                user=os.getenv("user"),
-                password=os.getenv("password"),
-                db=os.getenv("database"),
+                host=os.getenv("sql_host"),
+                user=os.getenv("sql_user"),
+                password=os.getenv("sql_password"),
+                db=os.getenv("sql_database"),
                 cursorclass=aiomysql.DictCursor,
                 autocommit=True
             )

@@ -189,7 +189,11 @@ class Study(commands.Cog):
 
         name = user.name + "#" + user.discriminator
         user_id = await self.get_user_id(user)
+
         hours_cur_month = self.redis_client.zscore(rank_categories["monthly"], user_id)
+        if not hours_cur_month:
+            hours_cur_month = 0
+
         role, next_role, time_to_next_role = utilities.get_role_status(self.role_name_to_obj, hours_cur_month)
 
         text = f"""
