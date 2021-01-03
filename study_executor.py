@@ -94,9 +94,9 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if os.getenv("mode") == "test":
-            ctx = await self.get_context(message)
-            await self.invoke(ctx)
+        if os.getenv("mode") == "test" and message.author.bot:
+            ctx = await self.bot.get_context(message)
+            await self.bot.invoke(ctx)
 
     async def fetch(self):
         if not self.guild:
