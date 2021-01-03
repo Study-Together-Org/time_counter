@@ -94,15 +94,9 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.author.bot and os.getenv("mode") == "test":
+        if os.getenv("mode") == "test" and message.author.bot:
             ctx = await self.bot.get_context(message)
-            if message.content == '!p':
-                await self.p(ctx, user=message.author)
-            elif message.content == '!me':
-                await self.me(ctx=ctx, user=message.author)
-            elif message.content[:3] == '!lb' and (
-                message.content[3:] == "" or (message.content[3] == " " and message.content[4:].isnumeric())):
-                await self.lb(ctx=ctx, user=message.author)
+            await self.bot.invoke(ctx)
 
     async def fetch(self):
         if not self.guild:
