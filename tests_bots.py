@@ -34,4 +34,5 @@ async def test_me(interface):
 
 
 if __name__ == "__main__":
+    # TODO test - read args from dev.end
     run_dtest_bot(sys.argv, test_collector)
