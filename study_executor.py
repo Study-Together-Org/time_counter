@@ -209,7 +209,6 @@ class Study(commands.Cog):
         if time_to_next_role:
             text += f"**Role promotion in:** ``{(str(time_to_next_role) + 'h')}``"
 
-        # TODO extract titles out to json
         emb = discord.Embed(title=utilities.config["embed_titles"]["p"], description=text)
         await ctx.send(embed=emb)
 
