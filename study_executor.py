@@ -253,7 +253,9 @@ class Study(commands.Cog):
             user = ctx.author
 
         name = user.name + "#" + user.discriminator
-        user_id = await self.get_user_id(user)
+
+        user_sql_obj = self.sqlalchemy_session.query(User).filter(User.discord_user_id == user.id).all()[0]
+        user_id = user_sql_obj.id
 
         stats = dict()
 
@@ -270,27 +272,25 @@ class Study(commands.Cog):
         average_per_day = utilities.round_num(
             stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
 
-        # streaks = await get_streaks(name)
-        # currentStreak = (str(streaks[1]) if streaks else "0")
-        # longestStreak = (str(streaks[2]) if streaks else "0")
-        # currentStreak += " day" + ("s" if int(currentStreak) != 1 else "")
-        # longestStreak += " day" + ("s" if int(longestStreak) != 1 else "")
+        currentStreak = user_sql_obj.current_streak
+        longestStreak = user_sql_obj.longest_streak
+        currentStreak = str(currentStreak) + " day" + ("s" if currentStreak != 1 else "")
+        longestStreak = str(longestStreak) + " day" + ("s" if longestStreak != 1 else "")
 
-        # TODO adjust the space
         emb = discord.Embed(
             title=utilities.config["embed_titles"]["me"],
             description=f"""
-            ```css\n```\n```
-            glsl\nTimeframe   Hours    Place\n\n
-            Past day:   {stats[rank_categories["daily"]]["study_time"]}h #{stats[rank_categories["daily"]]["rank"]}\n
-            Past week:  {stats[rank_categories["weekly"]]["study_time"]}h #{stats[rank_categories["weekly"]]["rank"]}\n
-            Monthly:    {stats[rank_categories["monthly"]]["study_time"]}h #{stats[rank_categories["monthly"]]["rank"]}\n
-            All-time:   {0}{0}\n\n
-            Average/day ({utilities.get_month()}): {average_per_day} h\n\n
-            Current study streak: {0}\n
-            Longest study streak: {0}
-            ```
-            """)
+            ```glsl
+Timeframe   Hours    Place\n
+Past day:   {stats[rank_categories["daily"]]["study_time"]}h #{stats[rank_categories["daily"]]["rank"]}
+Past week:  {stats[rank_categories["weekly"]]["study_time"]}h #{stats[rank_categories["weekly"]]["rank"]}
+Monthly:    {stats[rank_categories["monthly"]]["study_time"]}h #{stats[rank_categories["monthly"]]["rank"]}
+All-time:   {0}{0}\n
+Average/day ({utilities.get_month()}): {average_per_day} h\n
+Current study streak: {currentStreak}
+Longest study streak: {longestStreak}
+```
+""")
         foot = name
 
         emb.set_footer(text=foot, icon_url=user.avatar_url)
