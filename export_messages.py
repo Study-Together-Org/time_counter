@@ -12,8 +12,8 @@ import dbmanagement as dbm
 
 load_dotenv("dev.env")
 
+client = commands.Bot(command_prefix=os.getenv("prefix"), intents=Intents.all())
 
-client = commands.Bot(command_prefix="!", intents=Intents.all())
 
 @bot.command()
 async def copy(ctx):

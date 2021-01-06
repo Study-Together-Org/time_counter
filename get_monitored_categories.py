@@ -10,7 +10,7 @@ import utilities
 
 load_dotenv("dev.env")
 
-client = commands.Bot(command_prefix="!", intents=Intents.all())
+client = commands.Bot(command_prefix=os.getenv("prefix"), intents=Intents.all())
 
 with open("config.hjson") as f:
     config = hjson.load(f)

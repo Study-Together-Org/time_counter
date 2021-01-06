@@ -9,7 +9,7 @@ import dbmanagement as dbm
 load_dotenv("dev.env")
 
 
-client = commands.Bot(command_prefix="!", intents=Intents.all())
+client = commands.Bot(command_prefix=os.getenv("prefix"), intents=Intents.all())
 client.load_extension('study_executor')
 client.pool = None
 client.sql = dbm.MySQL(client)
