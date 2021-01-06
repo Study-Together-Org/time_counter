@@ -75,19 +75,24 @@ class Study(commands.Cog):
         for neighbor_id in id_li:
             res = dict()
             res["discord_user_id"] = neighbor_id
-            res["rank"] = 1 + self.redis_client.zrevrank(sorted_set_name, neighbor_id)
+            res["rank"] = await self.get_redis_rank(sorted_set_name, neighbor_id)
             res["study_time"] = self.redis_client.zscore(sorted_set_name, neighbor_id)
             id_with_score.append(res)
 
         return id_with_score
 
-    async def get_neighbor_stats(self, user_id):
-        sorted_set_name = rank_categories["monthly"]
+    async def get_redis_rank(self, sorted_set_name, user_id):
         rank = self.redis_client.zrevrank(sorted_set_name, user_id)
 
         if rank is None:
             self.redis_client.zadd(sorted_set_name, {user_id: 0})
             rank = self.redis_client.zrevrank(sorted_set_name, user_id)
+
+        return 1 + rank
+
+    async def get_neighbor_stats(self, user_id):
+        sorted_set_name = rank_categories["monthly"]
+        rank = await self.get_redis_rank(sorted_set_name, user_id)
 
         id_with_score = await self.get_info_from_leaderboard(sorted_set_name, rank - 5, rank + 5)
 
@@ -264,15 +269,11 @@ class Study(commands.Cog):
 
         stats = dict()
 
-        for sorted_set_name in rank_categories.values():
+        for sorted_set_name in list(rank_categories.values()) + ["all_time"]:
             stats[sorted_set_name] = {
-                "rank": self.redis_client.zrevrank(sorted_set_name, user_id),
+                "rank": await self.get_redis_rank(sorted_set_name, user_id),
                 "study_time": self.redis_client.zscore(sorted_set_name, user_id)
             }
-
-        # TODO Get all time data somehow
-        # overall_row = await get_overall_row(name)
-        # place_total = ("#" + overall_row[0] if overall_row[0] else "No data")
 
         average_per_day = utilities.round_num(
             stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
@@ -290,7 +291,7 @@ Timeframe   Hours    Place\n
 Past day:   {stats[rank_categories["daily"]]["study_time"]}h #{stats[rank_categories["daily"]]["rank"]}
 Past week:  {stats[rank_categories["weekly"]]["study_time"]}h #{stats[rank_categories["weekly"]]["rank"]}
 Monthly:    {stats[rank_categories["monthly"]]["study_time"]}h #{stats[rank_categories["monthly"]]["rank"]}
-All-time:   {0}{0}\n
+All-time:   {stats[rank_categories["all_time"]]["study_time"]}h #{stats[rank_categories["all_time"]]["rank"]}
 Average/day ({utilities.get_month()}): {average_per_day} h\n
 Current study streak: {currentStreak}
 Longest study streak: {longestStreak}

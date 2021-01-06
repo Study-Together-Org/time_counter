@@ -67,7 +67,6 @@ def generate_df():
 
 
 def generate_sorted_set():
-    # TODO Get all time data somehow
     filter_time_fn_li = [utilities.get_day_start, utilities.get_week_start, utilities.get_month_start,
                          utilities.get_earliest_start]
 
@@ -85,16 +84,23 @@ def generate_sorted_set():
         to_insert = agg["study_time"].to_dict()
         redis_client.zadd(sorted_set_name, to_insert)
 
+        if sorted_set_name == models.rank_categories["monthly"]:
+            if os.getenv("mode") == "test":
+                for id, studytime in to_insert.items():
+                    to_insert[id] += utilities.generate_random_number(length=3)[0]
+            else:
+                with open("discord_user_id_to_studytime.json") as f:
+                    discord_user_id_to_studytime = json.load(f)
 
-def add_all_time_data():
-    with open("discord_user_id_to_studytime.json") as f:
-        discord_user_id_to_studytime = json.load(f)
+                for id, studytime in discord_user_id_to_studytime.items():
+                    to_insert[int(id)] += studytime
 
-    redis_client.zadd("all_time", discord_user_id_to_studytime)
+            redis_client.zadd("all_time", to_insert)
+
+        # TODO add actual streak data
 
 
 if __name__ == '__main__':
     utilities.recreate_db(Base)
     generate_df()
     generate_sorted_set()
-    add_all_time_data()

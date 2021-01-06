@@ -195,7 +195,7 @@ def get_role_status(role_name_to_obj, hours_cur_month):
         cur_role = None
 
     next_role, time_to_next_role = (
-        role_name_to_obj[next_role_name], role_name_to_begin_hours[next_role_name] - hours_cur_month) \
+        role_name_to_obj[next_role_name], round_num(role_name_to_begin_hours[next_role_name] - hours_cur_month)) \
         if cur_role_name != role_names[-1] else (None, None)
 
     return cur_role, next_role, time_to_next_role
