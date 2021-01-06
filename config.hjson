@@ -1,5 +1,5 @@
 {
-  roles:
+  "study_roles":
   {
     "entry (30m-3h)":
     {
@@ -56,7 +56,11 @@
       hours: 220-350
       id: 676158518956654612
     }
-  }
+  },
+  other_roles: {
+    supporter: 685967088170696715
+    test_supporter: 792781265555685383
+  },
   embed_titles:
   {
     p: ":coffee: Personal Rank Statistics"

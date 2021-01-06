@@ -24,7 +24,7 @@ back_range = 61
 with open("config.hjson") as f:
     config = hjson.load(f)
 
-role_settings = config["roles"]
+role_settings = config["study_roles"]
 
 role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) for role_name, role_info in
                             role_settings.items()}

@@ -22,6 +22,7 @@ handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 monitored_categories = utilities.config["monitored_categories"].values()
 
+
 def check_categories(channel):
     if channel.category_id in monitored_categories:
         return True
@@ -42,6 +43,7 @@ class Study(commands.Cog):
         self.guild = None
         self.role_objs = None
         self.role_name_to_obj = None
+        self.supporter_role = None
         self.sqlalchemy_session = None
         self.redis_client = utilities.get_redis_client()
 
@@ -52,7 +54,6 @@ class Study(commands.Cog):
         """
         num_rows = await self.bot.sql.query(count_row_query)
         return list(num_rows[0].values())[0]
-
 
     async def get_discord_name(self, id):
         if os.getenv("mode") == "test":
@@ -107,7 +108,9 @@ class Study(commands.Cog):
     async def fetch(self):
         if not self.guild:
             self.guild = self.bot.get_guild(utilities.get_guildID())
+
         self.role_name_to_obj = {role.name: role for role in self.guild.roles}
+        self.supporter_role = self.guild.get_role(utilities.config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "supporter"])
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -298,6 +301,9 @@ Longest study streak: {longestStreak}
 ```
 """)
         foot = name
+
+        if self.supporter_role in user.roles:
+            foot = "⭐ " + foot
 
         emb.set_footer(text=foot, icon_url=user.avatar_url)
         await ctx.send(embed=emb)
