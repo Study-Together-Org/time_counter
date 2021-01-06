@@ -1,3 +1,4 @@
+import json
 import logging
 from sqlalchemy.orm import sessionmaker
 import os
@@ -20,7 +21,6 @@ handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w'
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 monitored_categories = utilities.config["monitored_categories"].values()
-
 
 def check_categories(channel):
     if channel.category_id in monitored_categories:
@@ -53,27 +53,16 @@ class Study(commands.Cog):
         num_rows = await self.bot.sql.query(count_row_query)
         return list(num_rows[0].values())[0]
 
-    async def get_user_id(self, user):
-        select_User_id = f"""
-            SELECT id from user WHERE discord_user_id = {user.id}
-        """
-        User_id = await self.bot.sql.query(select_User_id)
 
-        if not User_id:
-            await self.on_member_join(user)
-            User_id = await self.bot.sql.query(select_User_id)
-
-        return User_id[0]["id"]
-
-    async def get_discord_name(self, discord_user_id):
+    async def get_discord_name(self, id):
         if os.getenv("mode") == "test":
             for special_id in ["tester_human_discord_user_id", "tester_bot_token_discord_user_id"]:
-                if discord_user_id == os.getenv(special_id):
+                if id == os.getenv(special_id):
                     return special_id
 
             return utilities.generate_username()[0]
 
-        user = await self.bot.get_user(int(discord_user_id))
+        user = await self.bot.get_user(int(id))
         return user.name
 
     async def get_info_from_leaderboard(self, sorted_set_name, start=0, end=-1):
@@ -85,8 +74,7 @@ class Study(commands.Cog):
 
         for neighbor_id in id_li:
             res = dict()
-            res["discord_user_id"] = \
-                self.sqlalchemy_session.query(User.discord_user_id).filter(User.id == neighbor_id).scalar()
+            res["discord_user_id"] = neighbor_id
             res["rank"] = 1 + self.redis_client.zrevrank(sorted_set_name, neighbor_id)
             res["study_time"] = self.redis_client.zscore(sorted_set_name, neighbor_id)
             id_with_score.append(res)
@@ -135,7 +123,7 @@ class Study(commands.Cog):
         if not (check_categories(before.channel) or check_categories(after.channel)):
             return
 
-        user_id = await self.get_user_id(member)
+        user_id = member.id
 
         if before.channel == after.channel:
             if before.self_video != after.self_video:
@@ -189,7 +177,7 @@ class Study(commands.Cog):
     async def on_member_join(self, member):
 
         insert_new_member = f"""
-            INSERT INTO user (discord_user_id)
+            INSERT INTO user (id)
             VALUES ({member.id});
         """
         print(insert_new_member)
@@ -205,7 +193,7 @@ class Study(commands.Cog):
             user = ctx.author
 
         name = user.name + "#" + user.discriminator
-        user_id = await self.get_user_id(user)
+        user_id = user.id
 
         hours_cur_month = self.redis_client.zscore(rank_categories["monthly"], user_id)
         if not hours_cur_month:
@@ -234,7 +222,7 @@ class Study(commands.Cog):
             if not user:
                 user = ctx.author
 
-            user_id = await self.get_user_id(user)
+            user_id = user.id
             leaderboard = await self.get_neighbor_stats(user_id)
         else:
             if page < 1:
@@ -271,7 +259,7 @@ class Study(commands.Cog):
 
         name = user.name + "#" + user.discriminator
 
-        user_sql_obj = self.sqlalchemy_session.query(User).filter(User.discord_user_id == user.id).all()[0]
+        user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).all()[0]
         user_id = user_sql_obj.id
 
         stats = dict()

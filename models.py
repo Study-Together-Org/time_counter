@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 from sqlalchemy import ForeignKey, Column, String
-from sqlalchemy.dialects.mysql import DATETIME, INTEGER
+from sqlalchemy.dialects.mysql import DATETIME, INTEGER, BIGINT
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -33,8 +33,7 @@ rank_categories = {
 class User(Base):
     # How to make it just use the class name instead of hard coding the table name?
     __tablename__ = 'user'
-    id = Column(INTEGER, primary_key=True)
-    discord_user_id = Column(String(varchar_length), unique=True)
+    id = Column(BIGINT, primary_key=True)
     longest_streak = Column(INTEGER, server_default="0")
     current_streak = Column(INTEGER, server_default="0")
 
@@ -43,7 +42,7 @@ class Action(Base):
     # How to make it just use the class name instead of hard coding the table name?
     __tablename__ = 'action'
     id = Column(INTEGER, primary_key=True)
-    user_id = Column(INTEGER, ForeignKey('user.id'), nullable=False, index=True)
+    user_id = Column(BIGINT, ForeignKey('user.id'), nullable=False, index=True)
     category = Column(String(varchar_length), nullable=False)
     detail = Column(String(varchar_length))
     creation_time = Column(DATETIME, default=utilities.get_time)

@@ -1,4 +1,5 @@
 # TODO test - Worry about duplicate random samples if CDCI
+import json
 import random
 import redis
 import os
@@ -49,12 +50,12 @@ def random_data(df):
 
 
 def generate_df():
-    user_df = pd.DataFrame(columns=['discord_user_id'])
-    user_df['discord_user_id'] = utilities.generate_discord_user_id(user_size)
+    user_df = pd.DataFrame()
+    user_df['id'] = utilities.generate_discord_user_id(user_size)
 
     action_df = pd.DataFrame(columns=['user_id', 'category', 'detail', 'creation_time'])
     # It deliberately makes the last member have 0 action
-    action_df["user_id"] = np.random.randint(low=1, high=user_size, size=action_size)
+    action_df["user_id"] = np.random.choice(user_df["id"], size=action_size)
 
     action_df = action_df.groupby("user_id").apply(random_data)
     action_df["detail"] = utilities.generate_random_number(size=action_size)
@@ -85,7 +86,15 @@ def generate_sorted_set():
         redis_client.zadd(sorted_set_name, to_insert)
 
 
+def add_all_time_data():
+    with open("discord_user_id_to_studytime.json") as f:
+        discord_user_id_to_studytime = json.load(f)
+
+    redis_client.zadd("all_time", discord_user_id_to_studytime)
+
+
 if __name__ == '__main__':
     utilities.recreate_db(Base)
     generate_df()
     generate_sorted_set()
+    add_all_time_data()
