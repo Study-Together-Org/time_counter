@@ -31,6 +31,11 @@ role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) f
 role_names = list(role_settings.keys())
 
 
+def get_guildID():
+    guildID_key_name = ("test_" if os.getenv("mode") == "test" else "") + "guildID"
+    guildID = int(os.getenv(guildID_key_name))
+    return guildID
+
 def recreate_db(Base):
     redis_client = get_redis_client()
     redis_client.flushall()
@@ -170,7 +175,8 @@ def get_total_time_for_window(df, get_start_fn=None):
 
 
 def get_redis_client():
-    return redis.Redis(host=os.getenv("redis_host"), port=os.getenv("redis_port"), db=int(os.getenv("redis_db_num")), decode_responses=True)
+    return redis.Redis(host=os.getenv("redis_host"), port=os.getenv("redis_port"), db=int(os.getenv("redis_db_num")),
+                       decode_responses=True)
 
 
 def get_role_status(role_name_to_obj, hours_cur_month):

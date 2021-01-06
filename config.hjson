@@ -1,59 +1,87 @@
 {
-    roles: {
-      "entry (30m-3h)": {
-        "hours": "0.5-3",
-        "id": 671196458501931019
-      },
-      "beginner (3-6h)": {
-        "hours": "3-6",
-        "id": 666301176668618773
-      },
-      "intermediate (6-10h)": {
-        "hours": "6-10",
-        "id": 666301854996627477
-      },
-      "proficient (10-20h)": {
-        "hours": "10-20",
-        "id": 666302285177159719
-      },
-      "advanced (20-40h)": {
-        "hours": "20-40",
-        "id": 666302147176169502
-      },
-      "expert (40-60h)": {
-        "hours": "40-60",
-        "id": 666302227484508170
-      },
-      "a+ student (60-80h)": {
-        "hours": "60-80",
-        "id": 666302237634461696
-      },
-      "master (80-120h)": {
-        "hours": "80-120",
-        "id": 671175974691536911
-      },
-      "grandmaster (120-160h)": {
-        "hours": "120-160",
-        "id": 672197498323861532
-      },
-      "study-machine (160-220h)": {
-        "hours": "160-220",
-        "id": 674297907150716959
-      },
-      "study master (220-350h+)": {
-        "hours": "220-350",
-        "id": 676158518956654612}
+  roles:
+  {
+    "entry (30m-3h)":
+    {
+      hours: 0.5-3
+      id: 671196458501931019
     }
-
-    embed_titles: {
-        p: ":coffee: Personal Rank Statistics"
-        lb: "🧗 Study Leaderboard"
-        me: "Personal Study Statistics"
-    },
-
-    business: {
-      min_streak_time:1  # hours
-      timezone:UTC
-      update_time:17  # 17:00
+    "beginner (3-6h)":
+    {
+      hours: 3-6
+      id: 666301176668618773
     }
+    "intermediate (6-10h)":
+    {
+      hours: 6-10
+      id: 666301854996627477
+    }
+    "proficient (10-20h)":
+    {
+      hours: 10-20
+      id: 666302285177159719
+    }
+    "advanced (20-40h)":
+    {
+      hours: 20-40
+      id: 666302147176169502
+    }
+    "expert (40-60h)":
+    {
+      hours: 40-60
+      id: 666302227484508170
+    }
+    "a+ student (60-80h)":
+    {
+      hours: 60-80
+      id: 666302237634461696
+    }
+    "master (80-120h)":
+    {
+      hours: 80-120
+      id: 671175974691536911
+    }
+    "grandmaster (120-160h)":
+    {
+      hours: 120-160
+      id: 672197498323861532
+    }
+    "study-machine (160-220h)":
+    {
+      hours: 160-220
+      id: 674297907150716959
+    }
+    "study master (220-350h+)":
+    {
+      hours: 220-350
+      id: 676158518956654612
+    }
+  }
+  embed_titles:
+  {
+    p: ":coffee: Personal Rank Statistics"
+    lb: 🧗 Study Leaderboard
+    me: Personal Study Statistics
+  }
+  business:
+  {
+    min_streak_time: 1
+    timezone: UTC
+    update_time: 17
+  }
+  monitored_categories:
+  {
+    "\ud83d\udd0a 25 minute sessions": 792781266265047078
+    "\ud83d\udd0a 50 minute sessions": 792781266771771394
+    "\ud83d\udd0a screenshare/camera": 792781266771771398
+    "\ud83d\udd0a custom time (self-study)": 792781267141525548
+    "\ud83d\udd0a duo channels 1": 792781267602374677
+    "\ud83d\udd0a duo channels 2": 792781269171044379
+    "\ud83d\udd0a duo channels 3": 792781269829419066
+    "\ud83d\udd0a duo channels 4": 792781271540695074
+    "\ud83d\udd0a trio channels": 792781272946049036
+    "\ud83d\udd0a quintet channels": 792781273483575316
+    "\ud83d\udd0a group studying": 792781273730252829
+    "\ud83d\udd0a large group studying": 792781274032898106
+  }
 }

@@ -19,8 +19,21 @@ logger.setLevel(logging.DEBUG)
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
+monitored_categories = utilities.config["monitored_categories"].values()
 
-guildID = int(os.getenv("guildID"))
+
+def check_categories(channel):
+    if channel.category_id in monitored_categories:
+        return True
+
+    return False
+
+
+# async def check_categories(ctx):
+#     if ctx.channel.category_id in monitored_categories:
+#         return True
+#
+#     return False
 
 
 class Study(commands.Cog):
@@ -100,7 +113,7 @@ class Study(commands.Cog):
 
     async def fetch(self):
         if not self.guild:
-            self.guild = self.bot.get_guild(guildID)
+            self.guild = self.bot.get_guild(utilities.get_guildID())
         self.role_name_to_obj = {role.name: role for role in self.guild.roles}
 
     @commands.Cog.listener()
@@ -119,6 +132,9 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
+        if not (check_categories(before.channel) or check_categories(after.channel)):
+            return
+
         user_id = await self.get_user_id(member)
 
         if before.channel == after.channel:
@@ -171,6 +187,7 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
+
         insert_new_member = f"""
             INSERT INTO user (discord_user_id)
             VALUES ({member.id});
@@ -319,4 +336,4 @@ def setup(bot):
     #         await m.delete()
     #         return False
     #
-    # bot.add_check(botSpam)
+    # bot.add_check(check_categories)
