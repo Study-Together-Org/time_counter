@@ -1,3 +1,4 @@
+import logging
 import os
 import shortuuid
 from datetime import datetime, timedelta, timezone
@@ -31,10 +32,21 @@ role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) f
 role_names = list(role_settings.keys())
 
 
+def get_logger(job_name):
+    logger = logging.getLogger(job_name)
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='a')
+    handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+    logger.addHandler(handler)
+
+    return logger
+
+
 def get_guildID():
     guildID_key_name = ("test_" if os.getenv("mode") == "test" else "") + "guildID"
     guildID = int(os.getenv(guildID_key_name))
     return guildID
+
 
 def recreate_db(Base):
     redis_client = get_redis_client()
