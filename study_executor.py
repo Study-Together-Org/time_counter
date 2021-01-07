@@ -16,7 +16,7 @@ from sqlalchemy import update
 
 load_dotenv("dev.env")
 logger = logging.getLogger('discord')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
@@ -110,7 +110,8 @@ class Study(commands.Cog):
             self.guild = self.bot.get_guild(utilities.get_guildID())
 
         self.role_name_to_obj = {role.name: role for role in self.guild.roles}
-        self.supporter_role = self.guild.get_role(utilities.config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "supporter"])
+        self.supporter_role = self.guild.get_role(
+            utilities.config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "supporter"])
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -122,7 +123,7 @@ class Study(commands.Cog):
         self.sqlalchemy_session = Session()
 
         await self.fetch()
-        print('We have logged in as {0.user}'.format(self.bot))
+        logger.log(20, 'We have logged in as {0.user}'.format(self.bot))
         # game = discord.Game(f"{self.bot.month} statistics")
         # await self.bot.change_presence(status=discord.Status.online, activity=game)
 
@@ -160,10 +161,9 @@ class Study(commands.Cog):
                         INSERT INTO action (user_id, category, detail, creation_time)
                         VALUES ({user_id}, '{action_name}', '{channel.id}', '{utilities.get_time()}');
                     """
-                    print(insert_action)
                     response = await self.bot.sql.query(insert_action)
                     if response:
-                        print(response)
+                        logger.log(40, response)
 
             entered_time = self.sqlalchemy_session.query(Action.creation_time).filter(Action.user_id == user_id).filter(
                 Action.category.in_(['enter channel', 'exit channel'])).order_by(Action.creation_time.desc()).limit(
@@ -183,15 +183,13 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-
         insert_new_member = f"""
             INSERT INTO user (id)
             VALUES ({member.id});
         """
-        print(insert_new_member)
         response = await self.bot.sql.query(insert_new_member)
         if response:
-            print(response)
+            logger.log(40, response)
 
     @commands.command(aliases=["rank"])
     # @profile
@@ -258,7 +256,7 @@ class Study(commands.Cog):
             await ctx.send("You provided a wrong argument, more likely you provide an invalid number for the page.")
         else:
             await ctx.send("Unknown error, please contact owner.")
-            print(error)
+            logger.log(40, error)
 
     @commands.command()
     async def me(self, ctx, user: discord.Member = None):
