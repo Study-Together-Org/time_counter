@@ -1,5 +1,3 @@
-* Implement !me
-* Implement !lb
 * Write migration scripts
     * Fetch google sheet data and insert into database
 * Test
