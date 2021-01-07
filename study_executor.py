@@ -7,7 +7,7 @@ import pandas as pd
 import models
 from models import Action, User, rank_categories
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
 import utilities
 import redis
@@ -45,7 +45,9 @@ class Study(commands.Cog):
         self.role_name_to_obj = None
         self.supporter_role = None
         self.sqlalchemy_session = None
+
         self.redis_client = utilities.get_redis_client()
+        self.make_heartbeat.start()
 
     async def get_num_rows(self, table):
         count_row_query = f"""
@@ -315,6 +317,11 @@ Longest study streak: {longestStreak}
         if user.longest_streak == user.current_streak:
             user.longest_streak += 1
         self.sqlalchemy_session.commit()
+
+    @tasks.loop(seconds=int(os.getenv("heartbeat_interval_sec")))
+    async def make_heartbeat(self):
+        with open("heartbeat.log", "a") as f:
+            f.write(str(utilities.get_time()) + "\n")
 
 
 def setup(bot):
