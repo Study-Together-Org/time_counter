@@ -17,8 +17,9 @@ from sqlalchemy import update
 load_dotenv("dev.env")
 monitored_categories = utilities.config["monitored_categories"].values()
 
+
 def check_categories(channel):
-    if channel.category_id in monitored_categories:
+    if channel and channel.category_id in monitored_categories:
         return True
 
     return False
@@ -74,7 +75,7 @@ class Study(commands.Cog):
             res = dict()
             res["discord_user_id"] = neighbor_id
             res["rank"] = await self.get_redis_rank(sorted_set_name, neighbor_id)
-            res["study_time"] = self.redis_client.zscore(sorted_set_name, neighbor_id)
+            res["study_time"] = await self.get_redis_score(sorted_set_name, neighbor_id)
             id_with_score.append(res)
 
         return id_with_score
@@ -87,6 +88,14 @@ class Study(commands.Cog):
             rank = self.redis_client.zrevrank(sorted_set_name, user_id)
 
         return 1 + rank
+
+    async def get_redis_score(self, sorted_set_name, user_id):
+        score = self.redis_client.zscore(sorted_set_name, user_id)
+
+        if score is None:
+            self.redis_client.zadd(sorted_set_name, {user_id: 0})
+
+        return 0
 
     async def get_neighbor_stats(self, user_id):
         sorted_set_name = rank_categories["monthly"]
@@ -126,6 +135,8 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
+        await self.on_member_join(member)
+
         if not (check_categories(before.channel) or check_categories(after.channel)):
             return
 
@@ -166,11 +177,13 @@ class Study(commands.Cog):
                 Action.category.in_(['enter channel', 'exit channel'])).order_by(Action.creation_time.desc()).limit(
                 1).scalar()
 
-            for sorted_set_name in rank_categories.values():
-                self.redis_client.zincrby(sorted_set_name,
-                                          utilities.timedelta_to_hours(utilities.get_time() - entered_time), user_id)
+            if entered_time:
+                for sorted_set_name in rank_categories.values():
+                    self.redis_client.zincrby(sorted_set_name,
+                                              utilities.timedelta_to_hours(utilities.get_time() - entered_time),
+                                              user_id)
 
-            if self.redis_client.zscore(rank_categories["daily"], user_id) > utilities.config["business"][
+            if (await self.get_redis_score(rank_categories["daily"], user_id)) > utilities.config["business"][
                 "min_streak_time"]:
                 streak_name = "has_streak_today_" + str(user_id)
                 if not self.redis_client.exists(streak_name):
@@ -180,13 +193,16 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        insert_new_member = f"""
-            INSERT INTO user (id)
-            VALUES ({member.id});
-        """
-        response = await self.bot.sql.query(insert_new_member)
-        if response:
-            self.logger.log(40, response)
+        user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == member.id).all()
+
+        if not user_sql_obj:
+            insert_new_member = f"""
+                INSERT INTO user (id)
+                VALUES ({member.id});
+            """
+            response = await self.bot.sql.query(insert_new_member)
+            if response:
+                self.logger.log(40, response)
 
     @commands.command(aliases=["rank"])
     # @profile
@@ -198,7 +214,7 @@ class Study(commands.Cog):
         name = user.name + "#" + user.discriminator
         user_id = user.id
 
-        hours_cur_month = self.redis_client.zscore(rank_categories["monthly"], user_id)
+        hours_cur_month = await self.get_redis_score(rank_categories["monthly"], user_id)
         if not hours_cur_month:
             hours_cur_month = 0
 
@@ -270,7 +286,7 @@ class Study(commands.Cog):
         for sorted_set_name in list(rank_categories.values()) + ["all_time"]:
             stats[sorted_set_name] = {
                 "rank": await self.get_redis_rank(sorted_set_name, user_id),
-                "study_time": self.redis_client.zscore(sorted_set_name, user_id)
+                "study_time": await self.get_redis_score(sorted_set_name, user_id)
             }
 
         average_per_day = utilities.round_num(

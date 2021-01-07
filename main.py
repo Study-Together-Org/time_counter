@@ -21,6 +21,8 @@ def get_last_time():
         f.seek(-2, os.SEEK_END)
         while f.read(1) != b'\n':
             f.seek(-2, os.SEEK_CUR)
+            # TODO handle empty file
+            # TODO handle non timestamp
         last_line = f.readline().decode().strip()
 
     return datetime.strptime(last_line, "%Y-%m-%d %H:%M:%S.%f")
@@ -33,3 +35,6 @@ while True:
         sleep(10)
 
     sleep(60)
+
+# TODO actually kill the bot
+# proc.kill()
