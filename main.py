@@ -17,22 +17,24 @@ logger = utilities.get_logger("main")
 
 
 def get_last_time():
-    with open('heartbeat.log', 'rb') as f:
-        f.seek(-2, os.SEEK_END)
-        while f.read(1) != b'\n':
-            f.seek(-2, os.SEEK_CUR)
-            # TODO handle empty file
-            # TODO handle non timestamp
-        last_line = f.readline().decode().strip()
+    try:
+        with open('heartbeat.log', 'rb') as f:
+            f.seek(-2, os.SEEK_END)
+            while f.read(1) != b'\n':
+                f.seek(-2, os.SEEK_CUR)
+            last_line = f.readline().decode().strip()
 
-    return datetime.strptime(last_line, "%Y-%m-%d %H:%M:%S.%f")
+        return datetime.strptime(last_line, "%Y-%m-%d %H:%M:%S.%f")
+    except OSError:
+        return None
 
 
 proc = None
 
 while True:
     try:
-        if utilities.get_time() - get_last_time() > timedelta(minutes=1):
+        last_time = get_last_time()
+        if (not last_time) or utilities.get_time() - last_time > timedelta(minutes=1):
             proc = subprocess.Popen(['python3', './time_counter.py'])
             logger.log(40, f"restart bot with pid: {proc.pid}")
             sleep(10)
@@ -43,6 +45,3 @@ while True:
             proc.kill()
 
         break
-
-# TODO actually kill the bot
-# proc.kill()
