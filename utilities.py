@@ -190,8 +190,14 @@ def get_total_time_for_window(df, get_start_fn=None):
 
 
 def get_redis_client():
-    return redis.Redis(host=os.getenv("redis_host"), port=os.getenv("redis_port"), db=int(os.getenv("redis_db_num")),
-                       decode_responses=True)
+    return redis.Redis(
+        host=os.getenv("redis_host"),
+        port=os.getenv("redis_port"),
+        db=int(os.getenv("redis_db_num")),
+        username=os.getenv("redis_username"),
+        password=os.getenv("redis_password"),
+        decode_responses=True
+    )
 
 
 def get_role_status(role_name_to_obj, hours_cur_month):
