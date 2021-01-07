@@ -28,13 +28,21 @@ def get_last_time():
     return datetime.strptime(last_line, "%Y-%m-%d %H:%M:%S.%f")
 
 
-while True:
-    if utilities.get_time() - get_last_time() > timedelta(minutes=1):
-        proc = subprocess.Popen(['python3', './time_counter.py'])
-        logger.log(40, f"restart bot with pid: {proc.pid}")
-        sleep(10)
+proc = None
 
-    sleep(60)
+while True:
+    try:
+        if utilities.get_time() - get_last_time() > timedelta(minutes=1):
+            proc = subprocess.Popen(['python3', './time_counter.py'])
+            logger.log(40, f"restart bot with pid: {proc.pid}")
+            sleep(10)
+
+        sleep(60)
+    except KeyboardInterrupt:
+        if proc:
+            proc.kill()
+
+        break
 
 # TODO actually kill the bot
 # proc.kill()
