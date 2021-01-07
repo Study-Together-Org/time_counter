@@ -286,20 +286,23 @@ class Study(commands.Cog):
         currentStreak = str(currentStreak) + " day" + ("s" if currentStreak != 1 else "")
         longestStreak = str(longestStreak) + " day" + ("s" if longestStreak != 1 else "")
 
-        emb = discord.Embed(
-            title=utilities.config["embed_titles"]["me"],
-            description=f"""
-            ```glsl
-Timeframe   Hours    Place\n
-Past day:   {stats[rank_categories["daily"]]["study_time"]}h #{stats[rank_categories["daily"]]["rank"]}
-Past week:  {stats[rank_categories["weekly"]]["study_time"]}h #{stats[rank_categories["weekly"]]["rank"]}
-Monthly:    {stats[rank_categories["monthly"]]["study_time"]}h #{stats[rank_categories["monthly"]]["rank"]}
-All-time:   {stats[rank_categories["all_time"]]["study_time"]}h #{stats[rank_categories["all_time"]]["rank"]}
+        # lb += f'`{(person["rank"] or 0):>5}.` {person["study_time"]:<06} h {name}\n'
+        content = f"""
+```glsl
+Timeframe      Hours   Place\n
+Past day:   {stats[rank_categories["daily"]]["study_time"]:>7}h   #{stats[rank_categories["daily"]]["rank"]}
+Past week:  {stats[rank_categories["weekly"]]["study_time"]:>7}h   #{stats[rank_categories["weekly"]]["rank"]}
+Monthly:    {stats[rank_categories["monthly"]]["study_time"]:>7}h   #{stats[rank_categories["monthly"]]["rank"]}
+All-time:   {stats[rank_categories["all_time"]]["study_time"]:>7}h   #{stats[rank_categories["all_time"]]["rank"]}
 Average/day ({utilities.get_month()}): {average_per_day} h\n
 Current study streak: {currentStreak}
 Longest study streak: {longestStreak}
 ```
-""")
+        """
+
+        emb = discord.Embed(
+            title=utilities.config["embed_titles"]["me"],
+            description=content)
         foot = name
 
         if self.supporter_role in user.roles:
