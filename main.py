@@ -13,35 +13,30 @@ import dbmanagement as dbm
 import utilities
 
 load_dotenv("dev.env")
-logger = utilities.get_logger("main")
-
-
-def get_last_time():
-    try:
-        with open('heartbeat.log', 'rb') as f:
-            f.seek(-2, os.SEEK_END)
-            while f.read(1) != b'\n':
-                f.seek(-2, os.SEEK_CUR)
-            last_line = f.readline().decode().strip()
-
-        return datetime.strptime(last_line, "%Y-%m-%d %H:%M:%S.%f")
-    except OSError:
-        return None
-
+logger = utilities.get_logger("main", "heartbeat.log")
 
 proc = None
+line = utilities.get_last_line()
+utilities.kill_last_process(line)
 
 while True:
     try:
-        last_time = get_last_time()
-        if (not last_time) or utilities.get_time() - last_time > timedelta(minutes=1):
-            proc = subprocess.Popen(['python3', './time_counter.py'])
-            logger.log(40, f"restart bot with pid: {proc.pid}")
-            sleep(10)
+        line = utilities.get_last_line()
+        last_time = utilities.get_last_time(line)
+        max_diff_var_name = ("test_" if os.getenv("mode") == "test" else "") + "heart_attack_interval_sec"
+        max_diff_sec = int(os.getenv(max_diff_var_name))
+        max_diff = timedelta(seconds=max_diff_sec)
 
-        sleep(60)
-    except KeyboardInterrupt:
+        if (not last_time) or utilities.get_time() - last_time > max_diff:
+            proc = subprocess.Popen(['python3', './time_counter.py'])
+            logger.info(f"{utilities.get_time()} birth with pid {proc.pid}")
+            # logger.log(40, f"restart bot with pid: ")
+
+        sleep(60 if os.getenv("mode") != "test" else max_diff_sec)
+    except:
+        # This does not catch exceptions from child processes
         if proc:
             proc.kill()
+        logger.info(f"{utilities.get_time()} graceful death")
 
         break

@@ -41,7 +41,8 @@ class Study(commands.Cog):
         self.supporter_role = None
         self.sqlalchemy_session = None
 
-        self.logger = utilities.get_logger("time_executor")
+        self.time_counter_logger = utilities.get_logger("study_executor_time_counter", "discord.log")
+        self.heartbeat_logger = utilities.get_logger("study_executor_heartbeat", "heartbeat.log")
         self.redis_client = utilities.get_redis_client()
         self.make_heartbeat.start()
 
@@ -129,7 +130,7 @@ class Study(commands.Cog):
         self.sqlalchemy_session = Session()
 
         await self.fetch()
-        self.logger.log(20, 'We have logged in as {0.user}'.format(self.bot))
+        self.time_counter_logger.info(f'{utilities.get_time()} We have logged in as {self.bot.user}')
         # game = discord.Game(f"{self.bot.month} statistics")
         # await self.bot.change_presence(status=discord.Status.online, activity=game)
 
@@ -171,7 +172,7 @@ class Study(commands.Cog):
                     """
                     response = await self.bot.sql.query(insert_action)
                     if response:
-                        self.logger.log(40, response)
+                        self.time_counter_logger.error(f"{utilities.get_time()} {response}")
 
             entered_time = self.sqlalchemy_session.query(Action.creation_time).filter(Action.user_id == user_id).filter(
                 Action.category.in_(['enter channel', 'exit channel'])).order_by(Action.creation_time.desc()).limit(
@@ -202,7 +203,7 @@ class Study(commands.Cog):
             """
             response = await self.bot.sql.query(insert_new_member)
             if response:
-                self.logger.log(40, response)
+                self.time_counter_logger.error(f"{utilities.get_time()} {response}")
 
     @commands.command(aliases=["rank"])
     # @profile
@@ -269,7 +270,7 @@ class Study(commands.Cog):
             await ctx.send("You provided a wrong argument, more likely you provide an invalid number for the page.")
         else:
             await ctx.send("Unknown error, please contact owner.")
-            self.logger.log(40, error)
+            self.time_counter_logger.error(f"{utilities.get_time()} {error}")
 
     @commands.command()
     async def me(self, ctx, user: discord.Member = None):
@@ -331,8 +332,7 @@ Longest study streak: {longestStreak}
 
     @tasks.loop(seconds=int(os.getenv("heartbeat_interval_sec")))
     async def make_heartbeat(self):
-        with open("heartbeat.log", "a") as f:
-            f.write(str(utilities.get_time()) + "\n")
+        self.heartbeat_logger.info(f"{utilities.get_time()} alive")
 
 
 def setup(bot):

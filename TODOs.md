@@ -1,5 +1,4 @@
-* redis auth in utilities
-
+* use git crypt
 * Write migration scripts
     * Fetch google sheet data and insert into database
 * Test

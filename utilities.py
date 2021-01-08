@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import redis
 import hjson
+import psutil
 # from models import User
 
 from dotenv import load_dotenv
@@ -32,11 +33,11 @@ role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) f
 role_names = list(role_settings.keys())
 
 
-def get_logger(job_name):
+def get_logger(job_name, filename):
     logger = logging.getLogger(job_name)
     logger.setLevel(logging.INFO)
-    handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='a')
-    handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+    handler = logging.FileHandler(filename=filename, encoding='utf-8', mode='a')
+    handler.setFormatter(logging.Formatter('%(message)s:%(levelname)s:%(name)s:%(process)d'))
     logger.addHandler(handler)
 
     return logger
@@ -220,3 +221,35 @@ def get_role_status(role_name_to_obj, hours_cur_month):
         if cur_role_name != role_names[-1] else (None, None)
 
     return cur_role, next_role, time_to_next_role
+
+
+def get_last_line():
+    try:
+        with open('heartbeat.log', 'rb') as f:
+            f.seek(-2, os.SEEK_END)
+            while f.read(1) != b'\n':
+                f.seek(-2, os.SEEK_CUR)
+            line = f.readline().decode()
+        return line
+    except OSError:
+        return None
+
+
+def get_last_time(line):
+    last_line = " ".join(line.split()[:2])
+    return datetime.strptime(last_line, "%Y-%m-%d %H:%M:%S.%f")
+
+
+def kill_last_process(line):
+    parts = line.split()
+    pid = int(parts[-1].split(":")[-1])
+
+    try:
+        process = psutil.Process(pid)
+
+        if "time_counter.py" in " ".join(process.cmdline()):
+            process.terminate()
+            print(f"{pid} killed")
+
+    except:
+        pass
