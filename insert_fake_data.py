@@ -16,8 +16,9 @@ import numpy as np
 from sqlalchemy.ext.declarative import declarative_base
 
 load_dotenv("dev.env")
-random.seed(int(os.getenv("seed")))
-np.random.seed(int(os.getenv("seed")))
+seed = int(os.getenv("seed"))
+random.seed(seed)
+np.random.seed(seed)
 database_name = os.getenv("database")
 
 engine = utilities.get_engine()

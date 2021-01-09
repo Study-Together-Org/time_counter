@@ -1,15 +1,10 @@
-import asyncio
-import logging
 import os
 import subprocess
-from datetime import datetime, timedelta
+from datetime import timedelta
 from time import sleep
 
-from discord import Intents
-from discord.ext import commands
 from dotenv import load_dotenv
 
-import dbmanagement as dbm
 import utilities
 
 load_dotenv("dev.env")
@@ -30,11 +25,10 @@ while True:
         if (not last_time) or utilities.get_time() - last_time > max_diff:
             proc = subprocess.Popen(['python3', './time_counter.py'])
             logger.info(f"{utilities.get_time()} birth with pid {proc.pid}")
-            # logger.log(40, f"restart bot with pid: ")
 
         sleep(60 if os.getenv("mode") != "test" else max_diff_sec)
     except:
-        # This does not catch exceptions from child processes
+        # This does not catch exceptions from child processes!!
         if proc:
             proc.kill()
         logger.info(f"{utilities.get_time()} graceful death")

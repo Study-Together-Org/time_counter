@@ -53,3 +53,11 @@
 # async def get_user_rank(self, user_id):
 #     rank = self.sqlalchemy_session.query(User.rank).filter(User.id == user_id).scalar()
 #     return rank
+
+# async def get_num_rows(self, table):
+#     count_row_query = f"""
+#             SELECT COUNT(*)
+#             FROM {table}
+#         """
+#     num_rows = await self.bot.sql.query(count_row_query)
+#     return list(num_rows[0].values())[0]

@@ -1,7 +1,5 @@
 import json
-import random
 
-import numpy as np
 import pandas as pd
 from sqlalchemy.orm import sessionmaker
 
@@ -9,8 +7,6 @@ import models
 from models import *
 
 load_dotenv("dev.env")
-random.seed(int(os.getenv("seed")))
-np.random.seed(int(os.getenv("seed")))
 database_name = os.getenv("database")
 
 engine = utilities.get_engine()

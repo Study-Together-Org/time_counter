@@ -1,33 +1,29 @@
 import logging
 import os
-import shortuuid
 from datetime import datetime, timedelta, timezone
-from sqlalchemy import create_engine
-from faker import Faker
-import pandas as pd
-import numpy as np
-import redis
-import hjson
-import psutil
-# from models import User
 
+import hjson
+import pandas as pd
+import psutil
+import redis
+import shortuuid
 from dotenv import load_dotenv
+from faker import Faker
+from sqlalchemy import create_engine
 
 load_dotenv("dev.env")
 
-Faker.seed(42)
+Faker.seed(int(os.getenv("seed")))
 fake = Faker()
 
 num_uuid = shortuuid.ShortUUID()
 num_uuid.set_alphabet("0123456789")
-
 back_range = 61
 
 with open("config.hjson") as f:
     config = hjson.load(f)
 
 role_settings = config["study_roles"]
-
 role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) for role_name, role_info in
                             role_settings.items()}
 role_names = list(role_settings.keys())

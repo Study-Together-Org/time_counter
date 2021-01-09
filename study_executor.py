@@ -1,18 +1,12 @@
-import json
-import logging
-from sqlalchemy.orm import sessionmaker
 import os
-import pandas as pd
 
-import models
-from models import Action, User, rank_categories
 import discord
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
+from sqlalchemy.orm import sessionmaker
+
 import utilities
-import redis
-import numpy as np
-from sqlalchemy import update
+from models import Action, User, rank_categories
 
 load_dotenv("dev.env")
 monitored_categories = utilities.config["monitored_categories"].values()
@@ -23,13 +17,6 @@ def check_categories(channel):
         return True
 
     return False
-
-
-# async def check_categories(ctx):
-#     if ctx.channel.category_id in monitored_categories:
-#         return True
-#
-#     return False
 
 
 class Study(commands.Cog):
@@ -47,23 +34,23 @@ class Study(commands.Cog):
         self.redis_client = utilities.get_redis_client()
         self.make_heartbeat.start()
 
-    async def get_num_rows(self, table):
-        count_row_query = f"""
-            SELECT COUNT(*)
-            FROM {table}
-        """
-        num_rows = await self.bot.sql.query(count_row_query)
-        return list(num_rows[0].values())[0]
+    async def fetch(self):
+        if not self.guild:
+            self.guild = self.bot.get_guild(utilities.get_guildID())
 
-    async def get_discord_name(self, id):
+        self.role_name_to_obj = {role.name: role for role in self.guild.roles}
+        self.supporter_role = self.guild.get_role(
+            utilities.config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "supporter"])
+
+    async def get_discord_name(self, user_id):
         if os.getenv("mode") == "test":
             for special_id in ["tester_human_discord_user_id", "tester_bot_token_discord_user_id"]:
-                if id == os.getenv(special_id):
+                if user_id == os.getenv(special_id):
                     return special_id
 
             return utilities.generate_username()[0]
 
-        user = await self.bot.get_user(int(id))
+        user = await self.bot.get_user(int(user_id))
         return user.name
 
     async def get_info_from_leaderboard(self, sorted_set_name, start=0, end=-1):
@@ -123,19 +110,22 @@ class Study(commands.Cog):
         if last_record:
             return last_record.creation_time
 
+    async def add_streak(self, user_id):
+        user = self.sqlalchemy_session.query(User).filter(User.id == user_id).first()
+        user.current_streak += 1
+        if user.longest_streak == user.current_streak:
+            user.longest_streak += 1
+        self.sqlalchemy_session.commit()
+
+    @tasks.loop(seconds=int(os.getenv("heartbeat_interval_sec")))
+    async def make_heartbeat(self):
+        self.heartbeat_logger.info(f"{utilities.get_time()} alive")
+
     @commands.Cog.listener()
     async def on_message(self, message):
         if os.getenv("mode") == "test" and message.author.bot:
             ctx = await self.bot.get_context(message)
             await self.bot.invoke(ctx)
-
-    async def fetch(self):
-        if not self.guild:
-            self.guild = self.bot.get_guild(utilities.get_guildID())
-
-        self.role_name_to_obj = {role.name: role for role in self.guild.roles}
-        self.supporter_role = self.guild.get_role(
-            utilities.config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "supporter"])
 
     @commands.Cog.listener()
     async def on_connect(self):
@@ -255,15 +245,15 @@ class Study(commands.Cog):
             start = end - 10
             leaderboard = await self.get_info_from_leaderboard(rank_categories["monthly"], start, end)
 
-        lb = ''
+        text = ''
 
         for person in leaderboard:
             name = (await self.get_discord_name(person["discord_user_id"]))[:40]
-            lb += f'`{(person["rank"] or 0):>5}.` {person["study_time"]:<06} h {name}\n'
-        lb_embed = discord.Embed(title=f'{utilities.config["embed_titles"]["lb"]} ({utilities.get_month()})',
-                                 description=lb)
+            text += f'`{(person["rank"] or 0):>5}.` {person["study_time"]:<06} h {name}\n'
+        lb_embed = discord.Embed(title=f'{utilities.config["embed_titles"]["text"]} ({utilities.get_month()})',
+                                 description=text)
 
-        lb_embed.set_footer(text=f"Type !lb 3 (some number) to see placements from 31 to 40")
+        lb_embed.set_footer(text=f"Type !text 3 (some number) to see placements from 31 to 40")
         await ctx.send(embed=lb_embed)
 
     @lb.error
@@ -300,7 +290,7 @@ class Study(commands.Cog):
         currentStreak = str(currentStreak) + " day" + ("s" if currentStreak != 1 else "")
         longestStreak = str(longestStreak) + " day" + ("s" if longestStreak != 1 else "")
 
-        content = f"""
+        text = f"""
 ```glsl
 Timeframe      Hours   Place\n
 Past day:   {stats[rank_categories["daily"]]["study_time"]:>7}h   #{stats[rank_categories["daily"]]["rank"]}
@@ -315,7 +305,7 @@ Longest study streak: {longestStreak}
 
         emb = discord.Embed(
             title=utilities.config["embed_titles"]["me"],
-            description=content)
+            description=text)
         foot = name
 
         if self.supporter_role in user.roles:
@@ -323,17 +313,6 @@ Longest study streak: {longestStreak}
 
         emb.set_footer(text=foot, icon_url=user.avatar_url)
         await ctx.send(embed=emb)
-
-    async def add_streak(self, user_id):
-        user = self.sqlalchemy_session.query(User).filter(User.id == user_id).first()
-        user.current_streak += 1
-        if user.longest_streak == user.current_streak:
-            user.longest_streak += 1
-        self.sqlalchemy_session.commit()
-
-    @tasks.loop(seconds=int(os.getenv("heartbeat_interval_sec")))
-    async def make_heartbeat(self):
-        self.heartbeat_logger.info(f"{utilities.get_time()} alive")
 
 
 def setup(bot):
