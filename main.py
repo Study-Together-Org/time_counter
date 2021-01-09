@@ -27,7 +27,8 @@ while True:
             logger.info(f"{utilities.get_time()} birth with pid {proc.pid}")
 
         sleep(60 if os.getenv("mode") != "test" else max_diff_sec)
-    except:
+    except Exception as e:
+        print(e)
         # This does not catch exceptions from child processes!!
         if proc:
             proc.kill()
