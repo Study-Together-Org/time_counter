@@ -128,18 +128,12 @@ class Study(commands.Cog):
             await self.bot.invoke(ctx)
 
     @commands.Cog.listener()
-    async def on_connect(self):
-        if self.bot.pool is None:
-            await self.bot.sql.init()
-
+    async def on_ready(self):
         engine = utilities.get_engine()
         Session = sessionmaker(bind=engine)
         self.sqlalchemy_session = Session()
 
         await self.fetch()
-
-    @commands.Cog.listener()
-    async def on_ready(self):
         self.time_counter_logger.info(f'{utilities.get_time()} We have logged in as {self.bot.user}')
         # game = discord.Game(f"{self.bot.month} statistics")
         # await self.bot.change_presence(status=discord.Status.online, activity=game)
@@ -190,13 +184,9 @@ class Study(commands.Cog):
         user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == member.id).all()
 
         if not user_sql_obj:
-            insert_new_member = f"""
-                INSERT INTO user (id)
-                VALUES ({member.id});
-            """
-            response = await self.bot.sql.query(insert_new_member)
-            if response:
-                self.time_counter_logger.error(f"{utilities.get_time()} {response}")
+            to_insert = User(id=member.id)
+            self.sqlalchemy_session.add(to_insert)
+            self.sqlalchemy_session.commit()
 
     @commands.command(aliases=["rank"])
     async def p(self, ctx, user: discord.Member = None):
@@ -250,7 +240,7 @@ class Study(commands.Cog):
         for person in leaderboard:
             name = (await self.get_discord_name(person["discord_user_id"]))[:40]
             text += f'`{(person["rank"] or 0):>5}.` {person["study_time"]:<06} h {name}\n'
-        lb_embed = discord.Embed(title=f'{utilities.config["embed_titles"]["text"]} ({utilities.get_month()})',
+        lb_embed = discord.Embed(title=f'{utilities.config["embed_titles"]["lb"]} ({utilities.get_month()})',
                                  description=text)
 
         lb_embed.set_footer(text=f"Type !text 3 (some number) to see placements from 31 to 40")
@@ -270,23 +260,22 @@ class Study(commands.Cog):
             user = ctx.author
 
         name = user.name + "#" + user.discriminator
-
+        
         user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).first()
-        user_id = user_sql_obj.id
 
         stats = dict()
 
         for sorted_set_name in list(rank_categories.values()) + ["all_time"]:
             stats[sorted_set_name] = {
-                "rank": await self.get_redis_rank(sorted_set_name, user_id),
-                "study_time": await self.get_redis_score(sorted_set_name, user_id)
+                "rank": await self.get_redis_rank(sorted_set_name, user.id),
+                "study_time": await self.get_redis_score(sorted_set_name, user.id)
             }
 
         average_per_day = utilities.round_num(
             stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
 
-        currentStreak = user_sql_obj.current_streak
-        longestStreak = user_sql_obj.longest_streak
+        currentStreak = user_sql_obj.current_streak if user_sql_obj else 0
+        longestStreak = user_sql_obj.longest_streak if user_sql_obj else 0
         currentStreak = str(currentStreak) + " day" + ("s" if currentStreak != 1 else "")
         longestStreak = str(longestStreak) + " day" + ("s" if longestStreak != 1 else "")
 
