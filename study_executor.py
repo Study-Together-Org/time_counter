@@ -51,8 +51,8 @@ class Study(commands.Cog):
 
             return utilities.generate_username()[0]
 
-        user = await self.bot.get_user(int(user_id))
-        return user.name
+        user = self.bot.get_user(int(user_id))
+        return f"{user.name} #{user.discriminator}"
 
     async def get_info_from_leaderboard(self, sorted_set_name, start=0, end=-1):
         if start < 0:
@@ -193,7 +193,7 @@ class Study(commands.Cog):
         if not user:
             user = ctx.author
 
-        name = user.name + "#" + user.discriminator
+        name = f"{user.name} #{user.discriminator}"
         user_id = user.id
 
         hours_cur_month = await self.get_redis_score(rank_categories["monthly"], user_id)
@@ -307,8 +307,8 @@ def setup(bot):
     bot.add_cog(Study(bot))
 
     async def botSpam(ctx):
-        if ctx.channel.id in [792781274799538218, 666352633342197760, 695434541233602621, 715581625425068053, 699007476686651613,
-                              674590052390535168, 738091719073202327]:
+        if ctx.channel.id in {792781265936842792, 792781274799538218, 666352633342197760, 695434541233602621, 715581625425068053, 699007476686651613,
+                              674590052390535168, 738091719073202327}:
             return True
         else:
             m = await ctx.send(

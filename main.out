@@ -1,0 +1,20 @@
+2021-01-09 11:47:15,674 INFO sqlalchemy.engine.base.Engine SHOW VARIABLES LIKE 'sql_mode'
+2021-01-09 11:47:15,674 INFO sqlalchemy.engine.base.Engine {}
+2021-01-09 11:47:15,675 INFO sqlalchemy.engine.base.Engine SHOW VARIABLES LIKE 'lower_case_table_names'
+2021-01-09 11:47:15,675 INFO sqlalchemy.engine.base.Engine {}
+2021-01-09 11:47:15,677 INFO sqlalchemy.engine.base.Engine SELECT DATABASE()
+2021-01-09 11:47:15,677 INFO sqlalchemy.engine.base.Engine {}
+2021-01-09 11:47:15,677 INFO sqlalchemy.engine.base.Engine show collation where `Charset` = 'utf8mb4' and `Collation` = 'utf8mb4_bin'
+2021-01-09 11:47:15,677 INFO sqlalchemy.engine.base.Engine {}
+2021-01-09 11:47:15,679 INFO sqlalchemy.engine.base.Engine SELECT CAST('test plain returns' AS CHAR(60)) AS anon_1
+2021-01-09 11:47:15,679 INFO sqlalchemy.engine.base.Engine {}
+2021-01-09 11:47:15,679 INFO sqlalchemy.engine.base.Engine SELECT CAST('test unicode returns' AS CHAR(60)) AS anon_1
+2021-01-09 11:47:15,679 INFO sqlalchemy.engine.base.Engine {}
+2021-01-09 11:47:15,680 INFO sqlalchemy.engine.base.Engine SELECT CAST('test collated returns' AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_bin AS anon_1
+2021-01-09 11:47:15,680 INFO sqlalchemy.engine.base.Engine {}
+2021-01-09 11:47:15,681 INFO sqlalchemy.engine.base.Engine BEGIN (implicit)
+2021-01-09 11:47:15,682 INFO sqlalchemy.engine.base.Engine SELECT user.id AS user_id, user.longest_streak AS user_longest_streak, user.current_streak AS user_current_streak 
+FROM user 
+WHERE user.id = %(id_1)s 
+ LIMIT %(param_1)s
+2021-01-09 11:47:15,682 INFO sqlalchemy.engine.base.Engine {'id_1': 410917278641815580, 'param_1': 1}
