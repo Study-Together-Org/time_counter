@@ -95,8 +95,9 @@ class Study(commands.Cog):
 
         if score is None:
             self.redis_client.zadd(sorted_set_name, {user_id: 0})
+            score = 0
 
-        return 0
+        return score
 
     async def get_neighbor_stats(self, user_id):
         sorted_set_name = rank_categories["monthly"]
@@ -298,7 +299,6 @@ class Study(commands.Cog):
         currentStreak = str(currentStreak) + " day" + ("s" if currentStreak != 1 else "")
         longestStreak = str(longestStreak) + " day" + ("s" if longestStreak != 1 else "")
 
-        # lb += f'`{(person["rank"] or 0):>5}.` {person["study_time"]:<06} h {name}\n'
         content = f"""
 ```glsl
 Timeframe      Hours   Place\n

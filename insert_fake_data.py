@@ -59,7 +59,7 @@ def generate_df():
 
     action_df = action_df.groupby("user_id").apply(random_data)
     action_df["detail"] = utilities.generate_random_number(size=action_size)
-    # qualified_dates = action_df["creation_time"][]
+    # "append" means not creating a new table
     user_df.to_sql('user', con=engine, if_exists="append", index=False)
     action_df.to_sql('action', con=engine, if_exists="append", index=False)
     # TODO test - generate streak data
@@ -88,16 +88,8 @@ def generate_sorted_set():
             if os.getenv("mode") == "test":
                 for id, studytime in to_insert.items():
                     to_insert[id] += utilities.generate_random_number(length=3)[0]
-            else:
-                with open("discord_user_id_to_studytime.json") as f:
-                    discord_user_id_to_studytime = json.load(f)
-
-                for id, studytime in discord_user_id_to_studytime.items():
-                    to_insert[int(id)] += studytime
 
             redis_client.zadd("all_time", to_insert)
-
-        # TODO add actual streak data
 
 
 if __name__ == '__main__':
