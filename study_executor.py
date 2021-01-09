@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 import discord
@@ -135,8 +136,6 @@ class Study(commands.Cog):
 
         await self.fetch()
         self.time_counter_logger.info(f'{utilities.get_time()} We have logged in as {self.bot.user}')
-        # game = discord.Game(f"{self.bot.month} statistics")
-        # await self.bot.change_presence(status=discord.Status.online, activity=game)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -250,7 +249,7 @@ class Study(commands.Cog):
     async def lb_error(self, ctx, error):
         if isinstance(error, commands.errors.BadArgument):
             await ctx.send("You provided a wrong argument, more likely you provide an invalid number for the page.")
-        else:
+        elif not isinstance(error, commands.errors.CheckFailure):
             await ctx.send("Unknown error, please contact owner.")
             self.time_counter_logger.error(f"{utilities.get_time()} {error}")
 
@@ -307,16 +306,16 @@ Longest study streak: {longestStreak}
 def setup(bot):
     bot.add_cog(Study(bot))
 
-    # async def botSpam(ctx):
-    #     if ctx.channel.id in [666352633342197760, 695434541233602621, 715581625425068053, 699007476686651613,
-    #                           674590052390535168, 738091719073202327]:
-    #         return True
-    #     else:
-    #         m = await ctx.send(
-    #             f"{ctx.author.mention} Please use that command in <#666352633342197760> or <#695434541233602621>.")
-    #         await asyncio.sleep(10)
-    #         await ctx.message.delete()
-    #         await m.delete()
-    #         return False
-    #
-    # bot.add_check(check_categories)
+    async def botSpam(ctx):
+        if ctx.channel.id in [792781274799538218, 666352633342197760, 695434541233602621, 715581625425068053, 699007476686651613,
+                              674590052390535168, 738091719073202327]:
+            return True
+        else:
+            m = await ctx.send(
+                f"{ctx.author.mention} Please use that command in <#666352633342197760> or <#695434541233602621>.")
+            await asyncio.sleep(10)
+            await ctx.message.delete()
+            await m.delete()
+            return False
+
+    bot.add_check(botSpam)
