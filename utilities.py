@@ -237,6 +237,9 @@ def get_last_time(line):
 
 
 def kill_last_process(line):
+    if not line:
+        return
+
     parts = line.split()
     pid = int(parts[-1].split(":")[-1])
 
