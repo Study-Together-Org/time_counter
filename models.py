@@ -42,7 +42,7 @@ class Action(Base):
     id = Column(INTEGER, primary_key=True)
     user_id = Column(BIGINT, ForeignKey('user.id'), nullable=False, index=True)
     category = Column(String(varchar_length), nullable=False)
-    detail = Column(String(varchar_length))
+    detail = Column(BIGINT)
     creation_time = Column(DATETIME, default=utilities.get_time)
 
     user = relationship("User", back_populates="action")

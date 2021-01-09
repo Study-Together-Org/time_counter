@@ -34,6 +34,35 @@ async def test_me(interface):
     await interface.assert_reply_embed_equals(os.getenv("prefix") + "me", embed, attributes_to_check=["title"])
 
 
+# start id_1
+# start id_1
+#
+# #done
+# start id_1
+# start id_2
+#
+# end id_1
+# end id_1
+#
+# end id_1
+# end id_2
+#
+# #done
+# start id_1
+# end id_1
+#
+# #done
+# start id_1
+# end id_2
+#
+# #done
+# end id_1
+# start id_1
+#
+# #done
+# end id_1
+# start id_2
+
 if __name__ == "__main__":
     # TODO test - read args from dev.end
     run_dtest_bot(sys.argv, test_collector)

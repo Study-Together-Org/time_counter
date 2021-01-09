@@ -54,8 +54,8 @@ def recreate_db(Base):
 
 
 def get_engine(echo=True):
-    if os.getenv("mode") != "test":
-        echo = False
+    # if os.getenv("mode") != "test":
+    #     echo = False
 
     return create_engine(
         f'mysql+pymysql://{os.getenv("sql_user")}:{os.getenv("sql_password")}@{os.getenv("sql_host")}/{os.getenv("sql_database")}',
