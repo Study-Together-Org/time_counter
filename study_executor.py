@@ -41,6 +41,7 @@ class Study(commands.Cog):
         self.supporter_role = None
         self.sqlalchemy_session = None
 
+        self.birth_time = utilities.get_time()
         self.time_counter_logger = utilities.get_logger("study_executor_time_counter", "discord.log")
         self.heartbeat_logger = utilities.get_logger("study_executor_heartbeat", "heartbeat.log")
         self.redis_client = utilities.get_redis_client()
@@ -91,12 +92,7 @@ class Study(commands.Cog):
         return 1 + rank
 
     async def get_redis_score(self, sorted_set_name, user_id):
-        score = self.redis_client.zscore(sorted_set_name, user_id)
-
-        if score is None:
-            self.redis_client.zadd(sorted_set_name, {user_id: 0})
-            score = 0
-
+        score = self.redis_client.zscore(sorted_set_name, user_id) or 0
         return score
 
     async def get_neighbor_stats(self, user_id):
@@ -106,6 +102,26 @@ class Study(commands.Cog):
         id_with_score = await self.get_info_from_leaderboard(sorted_set_name, rank - 5, rank + 5)
 
         return id_with_score
+
+    def sync_voice_status_change(self, user_id, channel, category_type, category_offset, to_insert):
+        categories = [i + " " + category_type for i in ["end", "start"]]
+        cur_category = categories[category_offset]
+        last_record = self.sqlalchemy_session.query(Action) \
+            .filter(Action.user_id == user_id) \
+            .filter(Action.category.in_(categories)) \
+            .order_by(Action.creation_time.desc()).limit(1).first()
+
+        if last_record and last_record.category == cur_category:
+            record = Action(user_id=user_id, category=categories[1 - category_offset], detail=channel.channel.id,
+                            creation_time=self.birth_time)
+            to_insert.append(record)
+
+        record = Action(user_id=user_id, category=cur_category, detail=channel.channel.id,
+                        creation_time=utilities.get_time())
+        to_insert.append(record)
+
+        if last_record:
+            return last_record.creation_time
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -122,7 +138,7 @@ class Study(commands.Cog):
             utilities.config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "supporter"])
 
     @commands.Cog.listener()
-    async def on_ready(self):
+    async def on_connect(self):
         if self.bot.pool is None:
             await self.bot.sql.init()
 
@@ -131,6 +147,9 @@ class Study(commands.Cog):
         self.sqlalchemy_session = Session()
 
         await self.fetch()
+
+    @commands.Cog.listener()
+    async def on_ready(self):
         self.time_counter_logger.info(f'{utilities.get_time()} We have logged in as {self.bot.user}')
         # game = discord.Game(f"{self.bot.month} statistics")
         # await self.bot.change_presence(status=discord.Status.online, activity=game)
@@ -143,55 +162,38 @@ class Study(commands.Cog):
             return
 
         user_id = member.id
+        to_insert = []
 
-        if before.channel == after.channel:
-            if before.self_video != after.self_video:
-                category = ("start" if after.self_video else "end") + " video"
-                video_change = Action(user_id=user_id, category=category, detail=after.channel.id,
-                                      creation_time=utilities.get_time())
-                self.sqlalchemy_session.add(video_change)
+        if before.self_video != after.self_video:
+            self.sync_voice_status_change(user_id, after, "video", bool(after.self_video), to_insert)
 
-            if before.self_stream != after.self_stream:
-                category = ("start" if after.self_stream else "end") + " stream"
-                stream_change = Action(user_id=user_id, category=category, detail=after.channel.id,
-                                       creation_time=utilities.get_time())
-                self.sqlalchemy_session.add(stream_change)
+        if before.self_stream != after.self_stream:
+            self.sync_voice_status_change(user_id, after, "stream", bool(after.self_stream), to_insert)
 
-            if before.self_mute != after.self_mute:
-                category = ("start" if not after.self_mute else "end") + " voice"
-                stream_change = Action(user_id=user_id, category=category, detail=after.channel.id,
-                                       creation_time=utilities.get_time())
-                self.sqlalchemy_session.add(stream_change)
+        if before.self_mute != after.self_mute:
+            self.sync_voice_status_change(user_id, after, "voice", not bool(after.self_mute), to_insert)
 
-            self.sqlalchemy_session.commit()
-        else:
-            for action_name, channel in [("exit channel", before.channel), ("enter channel", after.channel)]:
+        if before.channel != after.channel:
+            for category_offset, channel in enumerate([before.channel, after.channel]):
                 if channel:
-                    insert_action = f"""
-                        INSERT INTO action (user_id, category, detail, creation_time)
-                        VALUES ({user_id}, '{action_name}', '{channel.id}', '{utilities.get_time()}');
-                    """
-                    response = await self.bot.sql.query(insert_action)
-                    if response:
-                        self.time_counter_logger.error(f"{utilities.get_time()} {response}")
+                    last_time = self.sync_voice_status_change(user_id, after, "channel", category_offset, to_insert)
 
-            entered_time = self.sqlalchemy_session.query(Action.creation_time).filter(Action.user_id == user_id).filter(
-                Action.category.in_(['enter channel', 'exit channel'])).order_by(Action.creation_time.desc()).limit(
-                1).scalar()
+                    if last_time:
+                        for sorted_set_name in rank_categories.values():
+                            self.redis_client.zincrby(sorted_set_name,
+                                                      utilities.timedelta_to_hours(utilities.get_time() - last_time),
+                                                      user_id)
 
-            if entered_time:
-                for sorted_set_name in rank_categories.values():
-                    self.redis_client.zincrby(sorted_set_name,
-                                              utilities.timedelta_to_hours(utilities.get_time() - entered_time),
-                                              user_id)
+                    if (await self.get_redis_score(rank_categories["daily"], user_id)) > utilities.config["business"][
+                        "min_streak_time"]:
+                        streak_name = "has_streak_today_" + str(user_id)
+                        if not self.redis_client.exists(streak_name):
+                            await self.add_streak(user_id)
+                        self.redis_client.set(streak_name, 1)
+                        self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
 
-            if (await self.get_redis_score(rank_categories["daily"], user_id)) > utilities.config["business"][
-                "min_streak_time"]:
-                streak_name = "has_streak_today_" + str(user_id)
-                if not self.redis_client.exists(streak_name):
-                    await self.add_streak(user_id)
-                self.redis_client.set(streak_name, 1)
-                self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
+        self.sqlalchemy_session.add_all(to_insert)
+        self.sqlalchemy_session.commit()
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -207,7 +209,6 @@ class Study(commands.Cog):
                 self.time_counter_logger.error(f"{utilities.get_time()} {response}")
 
     @commands.command(aliases=["rank"])
-    # @profile
     async def p(self, ctx, user: discord.Member = None):
         # if the user has not specified someone else
         if not user:
@@ -280,7 +281,7 @@ class Study(commands.Cog):
 
         name = user.name + "#" + user.discriminator
 
-        user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).all()[0]
+        user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).first()
         user_id = user_sql_obj.id
 
         stats = dict()
@@ -324,7 +325,7 @@ Longest study streak: {longestStreak}
         await ctx.send(embed=emb)
 
     async def add_streak(self, user_id):
-        user = self.sqlalchemy_session.query(User).filter(User.id == user_id).all()[0]
+        user = self.sqlalchemy_session.query(User).filter(User.id == user_id).first()
         user.current_streak += 1
         if user.longest_streak == user.current_streak:
             user.longest_streak += 1

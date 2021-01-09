@@ -72,7 +72,7 @@ def generate_sorted_set():
 
     for sorted_set_name, filter_time_fn in zip(models.rank_categories.values(), filter_time_fn_li):
         query = sqlalchemy_session.query(Action.user_id, Action.category, Action.creation_time) \
-            .filter(Action.category.in_(['enter channel', 'exit channel']))
+            .filter(Action.category.in_(['start channel', 'end channel']))
         if filter_time_fn:
             query = query.filter(Action.creation_time >= filter_time_fn())
 

@@ -2,7 +2,7 @@
 # VALUES (791367476235337730);
 
 INSERT INTO Action (User_id, category, detail, creation_time)
-VALUES (1, 'exit channel', 'General', '2020-12-25 18:37:07.000000');
+VALUES (1, 'end channel', 'General', '2020-12-25 18:37:07.000000');
 
 SELECT id from User WHERE discord_user_id = 791367476235337730
 
@@ -33,13 +33,13 @@ explain SELECT creation_time
 
 SET @mutlplier:= 0;
 select user_id, sum(creation_time) as exit_sum from action
-where category = 'exit channel'
+where category = 'end channel'
 group by user_id
 
 explain select user_id, sum(creation_time) as exit_sum from action
-        where category = 'exit channel'
+        where category = 'end channel'
         group by user_id
 
 select user_id, sum(creation_time) as enter_sum from action
-where category = 'enter channel'
+where category = 'start channel'
 group by user_id

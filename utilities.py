@@ -123,11 +123,11 @@ def calc_total_time(data):
     start_idx = 0
     end_idx = len(data) - 1
 
-    if data[0]["category"] == "exit channel":
+    if data[0]["category"] == "end channel":
         total_time += data[0]["creation_time"] - get_month_start()
         start_idx = 1
 
-    if data[-1]["category"] == "enter channel":
+    if data[-1]["category"] == "start channel":
         total_time += get_time() - data[-1]["creation_time"]
         end_idx -= 1
 
@@ -170,17 +170,17 @@ def get_total_time_for_window(df, get_start_fn=None):
     end_idx = len(df)
 
     if len(df):
-        if df["category"].iloc[0] == "exit channel":
+        if df["category"].iloc[0] == "end channel":
             total_time += df["creation_time"].iloc[0] - pd.to_datetime(get_start_fn())
             start_idx = 1
 
-        if df["category"].iloc[-1] == "enter channel":
+        if df["category"].iloc[-1] == "start channel":
             total_time += pd.to_datetime(get_time()) - df["creation_time"].iloc[-1]
             end_idx -= 1
 
     df = df.iloc[start_idx: end_idx]
-    enter_df = df[df["category"] == "enter channel"]["creation_time"]
-    exit_df = df[df["category"] == "exit channel"]["creation_time"]
+    enter_df = df[df["category"] == "start channel"]["creation_time"]
+    exit_df = df[df["category"] == "end channel"]["creation_time"]
     total_time += pd.to_timedelta((exit_df.values - enter_df.values).sum())
     total_time = timedelta_to_hours(total_time)
 
