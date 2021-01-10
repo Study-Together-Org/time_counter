@@ -1,7 +1,7 @@
 import os
 import sys
 from distest import TestCollector
-from distest import run_dtest_bot
+from distest import run_dtest_bot, run_command_line_bot
 from discord import Embed
 import utilities
 from freezegun import freeze_time
@@ -64,5 +64,6 @@ async def test_me(interface):
 # start id_2
 
 if __name__ == "__main__":
-    # TODO test - read args from dev.end
-    run_dtest_bot(sys.argv, test_collector)
+    run_command_line_bot(target=int(os.getenv("test_bot_id")), token=os.getenv("test_bot_token"),
+                         channel_id=int(os.getenv("test_channel_id")), tests="all",
+                         stats=True, timeout=5, collector=test_collector)
