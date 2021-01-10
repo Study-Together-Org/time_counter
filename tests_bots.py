@@ -13,7 +13,7 @@ bot_container = []
 bot = None
 guild = None
 bot_id = None
-time_to_stay = 36
+time_to_stay = 3600 / (10 ** int(os.getenv("test_display_num_decimal")))
 time_tolerance = timedelta(seconds=.1)
 
 redis_client = utilities.get_redis_client()

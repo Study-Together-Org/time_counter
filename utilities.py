@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import time
+import math
 from datetime import datetime, timedelta, timezone
 
 import hjson
@@ -111,6 +112,9 @@ def timedelta_to_hours(td):
 
 
 def round_num(num, ndigits=2):
+    if os.getenv("mode") == "test":
+        ndigits = int(os.getenv("test_display_num_decimal"))
+
     return round(num, ndigits=ndigits)
 
 
@@ -293,6 +297,8 @@ def check_stats_diff(prev_stats, cur_stats):
 
 
 def sleep(seconds):
+    seconds = math.ceil(seconds)
+
     for remaining in range(seconds, 0, -1):
         sys.stdout.write("\r")
         sys.stdout.write("{:2d} seconds remaining.".format(remaining))
