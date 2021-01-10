@@ -11,7 +11,9 @@ from utilities import rank_categories
 from models import Action, User
 
 load_dotenv("dev.env")
-monitored_categories = utilities.config["monitored_categories"].values()
+monitored_key_name = ("test_" if os.getenv("mode") == "test" else "") + "monitored_categories"
+monitored_categories = utilities.config[monitored_key_name].values()
+
 
 def check_categories(channel):
     if channel and channel.category_id in monitored_categories:
@@ -177,8 +179,9 @@ class Study(commands.Cog):
                                                       utilities.timedelta_to_hours(utilities.get_time() - last_time),
                                                       user_id)
 
-            if (await utilities.get_redis_score(self.redis_client, rank_categories["daily"], user_id)) > utilities.config["business"][
-                "min_streak_time"]:
+            if (await utilities.get_redis_score(self.redis_client, rank_categories["daily"], user_id)) > \
+                utilities.config["business"][
+                    "min_streak_time"]:
                 streak_name = "has_streak_today_" + str(user_id)
                 if not self.redis_client.exists(streak_name):
                     await self.add_streak(user_id)
@@ -276,11 +279,12 @@ class Study(commands.Cog):
         currentStreak = str(currentStreak) + " day" + ("s" if currentStreak != 1 else "")
         longestStreak = str(longestStreak) + " day" + ("s" if longestStreak != 1 else "")
 
+# TODO change past to current
         text = f"""
 ```glsl
 Timeframe      Hours   Place\n
-Past day:   {stats[rank_categories["daily"]]["study_time"]:>7}h   #{stats[rank_categories["daily"]]["rank"]}
-Past week:  {stats[rank_categories["weekly"]]["study_time"]:>7}h   #{stats[rank_categories["weekly"]]["rank"]}
+Daily:      {stats[rank_categories["daily"]]["study_time"]:>7}h   #{stats[rank_categories["daily"]]["rank"]}
+Weekly:     {stats[rank_categories["weekly"]]["study_time"]:>7}h   #{stats[rank_categories["weekly"]]["rank"]}
 Monthly:    {stats[rank_categories["monthly"]]["study_time"]:>7}h   #{stats[rank_categories["monthly"]]["rank"]}
 All-time:   {stats[rank_categories["all_time"]]["study_time"]:>7}h   #{stats[rank_categories["all_time"]]["rank"]}
 Average/day ({utilities.get_month()}): {average_per_day} h\n

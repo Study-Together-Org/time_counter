@@ -101,4 +101,19 @@
     674590052390535168
     738091719073202327
   ]
+  test_monitored_categories:
+  {
+    "\ud83d\udd0a 25 minute sessions": 792781266265047078
+    "\ud83d\udd0a 50 minute sessions": 792781266771771394
+    "\ud83d\udd0a screenshare/camera": 792781266771771398
+    "\ud83d\udd0a custom time (self-study)": 792781267141525548
+    "\ud83d\udd0a duo channels 1": 792781267602374677
+    "\ud83d\udd0a duo channels 2": 792781269171044379
+    "\ud83d\udd0a duo channels 3": 792781269829419066
+    "\ud83d\udd0a duo channels 4": 792781271540695074
+    "\ud83d\udd0a trio channels": 792781272946049036
+    "\ud83d\udd0a quintet channels": 792781273483575316
+    "\ud83d\udd0a group studying": 792781273730252829
+    "\ud83d\udd0a large group studying": 792781274032898106
+  }
 }

@@ -5,7 +5,6 @@ from discord import Intents
 from discord.ext import commands
 from dotenv import load_dotenv
 
-import dbmanagement as dbm
 import utilities
 
 load_dotenv("dev.env")
@@ -25,12 +24,13 @@ async def on_ready():
         if category.name[0] == "🔊":
             monitored_categories[category.name] = category.id
 
-    config["monitored_categories"] = monitored_categories
+    key_name = ("test_" if os.getenv("mode") == "test" else "") + "monitored_categories"
+    config[key_name] = monitored_categories
 
     with open("config.hjson", "w") as f:
         hjson.dump(config, f)
 
-    print("Done")
+    await client.logout()
 
 client.run(os.getenv('bot_token'))
 print("Done")
