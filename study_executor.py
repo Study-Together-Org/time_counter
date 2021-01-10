@@ -280,10 +280,10 @@ class Study(commands.Cog):
         longestStreak = str(longestStreak) + " day" + ("s" if longestStreak != 1 else "")
 
         num_nums_var_name = ("test_" if os.getenv("mode") == "test" else "") + "display_num_decimal"
-        num_nums = int(os.getenv(num_nums_var_name)) + 3
+        num_nums = int(os.getenv(num_nums_var_name)) + 5
         text = f"""
 ```glsl
-Timeframe      Hours   Place\n
+Timeframe         Hours    Place\n
 Daily:         {stats[rank_categories["daily"]]["study_time"]:>{num_nums}}h   #{stats[rank_categories["daily"]]["rank"]}
 Weekly:        {stats[rank_categories["weekly"]]["study_time"]:>{num_nums}}h   #{stats[rank_categories["weekly"]]["rank"]}
 Monthly:       {stats[rank_categories["monthly"]]["study_time"]:>{num_nums}}h   #{stats[rank_categories["monthly"]]["rank"]}
