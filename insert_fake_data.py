@@ -71,7 +71,7 @@ def generate_sorted_set():
     filter_time_fn_li = [utilities.get_day_start, utilities.get_week_start, utilities.get_month_start,
                          utilities.get_earliest_start]
 
-    for sorted_set_name, filter_time_fn in zip(models.rank_categories.values(), filter_time_fn_li):
+    for sorted_set_name, filter_time_fn in zip(utilities.rank_categories.values(), filter_time_fn_li):
         query = sqlalchemy_session.query(Action.user_id, Action.category, Action.creation_time) \
             .filter(Action.category.in_(['start channel', 'end channel']))
         if filter_time_fn:
@@ -85,10 +85,10 @@ def generate_sorted_set():
         to_insert = agg["study_time"].to_dict()
         redis_client.zadd(sorted_set_name, to_insert)
 
-        if sorted_set_name == models.rank_categories["monthly"]:
+        if sorted_set_name == utilities.rank_categories["monthly"]:
             if os.getenv("mode") == "test":
-                for id, studytime in to_insert.items():
-                    to_insert[id] += utilities.generate_random_number(length=3)[0]
+                for user_id in to_insert:
+                    to_insert[user_id] += utilities.generate_random_number(length=3)[0]
 
             redis_client.zadd("all_time", to_insert)
 

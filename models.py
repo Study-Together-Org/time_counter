@@ -21,13 +21,6 @@ action_categories = [
     # "start timer", "end timer"
 ]
 
-rank_categories = {
-    "daily": f"{utilities.get_day_start()}_daily",
-    "weekly": f"{utilities.get_week_start()}_weekly",
-    "monthly": f"{utilities.get_month()}_monthly",
-    "all_time": "all_time"
-}
-
 
 class User(Base):
     # How to make it just use the class name instead of hard coding the table name?

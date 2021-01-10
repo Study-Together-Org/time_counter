@@ -1,5 +1,7 @@
 import logging
 import os
+import sys
+import time
 from datetime import datetime, timedelta, timezone
 
 import hjson
@@ -22,6 +24,7 @@ back_range = 61
 
 with open("config.hjson") as f:
     config = hjson.load(f)
+config["command_channels"] = set(config["command_channels"])
 
 role_settings = config["study_roles"]
 role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) for role_name, role_info in
@@ -252,3 +255,54 @@ def kill_last_process(line):
 
     except:
         pass
+
+
+async def get_redis_rank(redis_client, sorted_set_name, user_id):
+    rank = redis_client.zrevrank(sorted_set_name, user_id)
+
+    if rank is None:
+        redis_client.zadd(sorted_set_name, {user_id: 0})
+        rank = redis_client.zrevrank(sorted_set_name, user_id)
+
+    return 1 + rank
+
+
+async def get_redis_score(redis_client, sorted_set_name, user_id):
+    score = redis_client.zscore(sorted_set_name, user_id) or 0
+    return round_num(score)
+
+
+async def get_user_stats(redis_client, user_id):
+    stats = dict()
+
+    for sorted_set_name in list(rank_categories.values()) + ["all_time"]:
+        stats[sorted_set_name] = {
+            "rank": await get_redis_rank(redis_client, sorted_set_name, user_id),
+            "study_time": await get_redis_score(redis_client, sorted_set_name, user_id)
+        }
+
+    return stats
+
+
+def check_stats_diff(prev_stats, cur_stats):
+    prev_studytime = [item["study_time"] for item in prev_stats.values()]
+    cur_studytime = [item["study_time"] for item in cur_stats.values()]
+    diff = [round_num(cur - prev) for prev, cur in zip(prev_studytime, cur_studytime)]
+
+    return diff
+
+
+def sleep(seconds):
+    for remaining in range(seconds, 0, -1):
+        sys.stdout.write("\r")
+        sys.stdout.write("{:2d} seconds remaining.".format(remaining))
+        sys.stdout.flush()
+        time.sleep(1)
+
+
+rank_categories = {
+    "daily": f"{get_day_start()}_daily",
+    "weekly": f"{get_week_start()}_weekly",
+    "monthly": f"{get_month()}_monthly",
+    "all_time": "all_time"
+}

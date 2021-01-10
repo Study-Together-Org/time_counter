@@ -7,11 +7,11 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
 
 import utilities
-from models import Action, User, rank_categories
+from utilities import rank_categories
+from models import Action, User
 
 load_dotenv("dev.env")
 monitored_categories = utilities.config["monitored_categories"].values()
-
 
 def check_categories(channel):
     if channel and channel.category_id in monitored_categories:
@@ -63,41 +63,28 @@ class Study(commands.Cog):
         for neighbor_id in id_li:
             res = dict()
             res["discord_user_id"] = neighbor_id
-            res["rank"] = await self.get_redis_rank(sorted_set_name, neighbor_id)
-            res["study_time"] = await self.get_redis_score(sorted_set_name, neighbor_id)
+            res["rank"] = await utilities.get_redis_rank(self.redis_client, sorted_set_name, neighbor_id)
+            res["study_time"] = await utilities.get_redis_score(self.redis_client, sorted_set_name, neighbor_id)
             id_with_score.append(res)
 
         return id_with_score
 
-    async def get_redis_rank(self, sorted_set_name, user_id):
-        rank = self.redis_client.zrevrank(sorted_set_name, user_id)
-
-        if rank is None:
-            self.redis_client.zadd(sorted_set_name, {user_id: 0})
-            rank = self.redis_client.zrevrank(sorted_set_name, user_id)
-
-        return 1 + rank
-
-    async def get_redis_score(self, sorted_set_name, user_id):
-        score = self.redis_client.zscore(sorted_set_name, user_id) or 0
-        return score
-
     async def get_neighbor_stats(self, user_id):
         sorted_set_name = rank_categories["monthly"]
-        rank = await self.get_redis_rank(sorted_set_name, user_id)
+        rank = await utilities.get_redis_rank(self.redis_client, sorted_set_name, user_id)
 
         id_with_score = await self.get_info_from_leaderboard(sorted_set_name, rank - 5, rank + 5)
 
         return id_with_score
 
     def sync_voice_status_change(self, user_id, channel, category_type, category_offset):
+        cur_time = utilities.get_time()
         categories = [i + " " + category_type for i in ["end", "start"]]
         cur_category = categories[category_offset]
         last_record = self.sqlalchemy_session.query(Action) \
             .filter(Action.user_id == user_id) \
             .filter(Action.category.in_(categories)) \
             .order_by(Action.creation_time.desc()).limit(1).first()
-        cur_time = utilities.get_time()
 
         # data recovery
         if last_record:
@@ -190,7 +177,7 @@ class Study(commands.Cog):
                                                       utilities.timedelta_to_hours(utilities.get_time() - last_time),
                                                       user_id)
 
-            if (await self.get_redis_score(rank_categories["daily"], user_id)) > utilities.config["business"][
+            if (await utilities.get_redis_score(self.redis_client, rank_categories["daily"], user_id)) > utilities.config["business"][
                 "min_streak_time"]:
                 streak_name = "has_streak_today_" + str(user_id)
                 if not self.redis_client.exists(streak_name):
@@ -216,7 +203,7 @@ class Study(commands.Cog):
         name = f"{user.name} #{user.discriminator}"
         user_id = user.id
 
-        hours_cur_month = await self.get_redis_score(rank_categories["monthly"], user_id)
+        hours_cur_month = await utilities.get_redis_score(self.redis_client, rank_categories["monthly"], user_id)
         if not hours_cur_month:
             hours_cur_month = 0
 
@@ -280,14 +267,7 @@ class Study(commands.Cog):
 
         name = user.name + "#" + user.discriminator
         user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).first()
-        stats = dict()
-
-        for sorted_set_name in list(rank_categories.values()) + ["all_time"]:
-            stats[sorted_set_name] = {
-                "rank": await self.get_redis_rank(sorted_set_name, user.id),
-                "study_time": await self.get_redis_score(sorted_set_name, user.id)
-            }
-
+        stats = await utilities.get_user_stats(self.redis_client, user.id)
         average_per_day = utilities.round_num(
             stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
 
@@ -325,9 +305,7 @@ def setup(bot):
     bot.add_cog(Study(bot))
 
     async def botSpam(ctx):
-        if ctx.channel.id in {792781265936842792, 792781274799538218, 666352633342197760, 695434541233602621,
-                              715581625425068053, 699007476686651613,
-                              674590052390535168, 738091719073202327}:
+        if ctx.channel.id in utilities.config["command_channels"]:
             return True
         else:
             m = await ctx.send(
