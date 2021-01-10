@@ -1,5 +1,5 @@
 {
-  "study_roles":
+  study_roles:
   {
     "entry (30m-3h)":
     {
@@ -56,11 +56,12 @@
       hours: 220-350
       id: 676158518956654612
     }
-  },
-  other_roles: {
+  }
+  other_roles:
+  {
     supporter: 685967088170696715
     test_supporter: 792781265555685383
-  },
+  }
   embed_titles:
   {
     p: ":coffee: Personal Rank Statistics"
@@ -75,18 +76,19 @@
   }
   monitored_categories:
   {
-    "\ud83d\udd0a 25 minute sessions": 792781266265047078
-    "\ud83d\udd0a 50 minute sessions": 792781266771771394
-    "\ud83d\udd0a screenshare/camera": 792781266771771398
-    "\ud83d\udd0a custom time (self-study)": 792781267141525548
-    "\ud83d\udd0a duo channels 1": 792781267602374677
-    "\ud83d\udd0a duo channels 2": 792781269171044379
-    "\ud83d\udd0a duo channels 3": 792781269829419066
-    "\ud83d\udd0a duo channels 4": 792781271540695074
-    "\ud83d\udd0a trio channels": 792781272946049036
-    "\ud83d\udd0a quintet channels": 792781273483575316
-    "\ud83d\udd0a group studying": 792781273730252829
-    "\ud83d\udd0a large group studying": 792781274032898106
+    "\ud83d\udd0a 25 minute sessions": 703232176757669979
+    "\ud83d\udd0a 50 minute sessions": 703234892267388989
+    "\ud83d\udd0a screenshare/camera": 713066910777999400
+    "\ud83d\udd0a custom time (self-study)": 595999872222756889
+    "\ud83d\udd0a duo channels 1": 672436628702363648
+    "\ud83d\udd0a duo channels 2": 712995868814606387
+    "\ud83d\udd0a duo channels 3": 778628160098271272
+    "\ud83d\udd0a duo channels 4": 783355699861651476
+    "\ud83d\udd0a duo channels 5": 784524787736248420
+    "\ud83d\udd0a trio channels": 763817076561150012
+    "\ud83d\udd0a quintet channels": 763817554610225202
+    "\ud83d\udd0a group studying": 712997079596924948
+    "\ud83d\udd0a large group studying": 764623572613201980
   }
   command_channels:
   [
