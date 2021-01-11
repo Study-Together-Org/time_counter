@@ -128,6 +128,16 @@ class Study(commands.Cog):
             user.longest_streak += 1
         self.sqlalchemy_session.commit()
 
+    async def update_streak(self, rank_categories, user_id):
+        if (await utilities.get_redis_score(self.redis_client, rank_categories["daily"], user_id)) > \
+            utilities.config["business"][
+                "min_streak_time"]:
+            streak_name = "has_streak_today_" + str(user_id)
+            if not self.redis_client.exists(streak_name):
+                await self.add_streak(user_id)
+            self.redis_client.set(streak_name, 1)
+            self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
+
     @tasks.loop(seconds=int(os.getenv("heartbeat_interval_sec")))
     async def make_heartbeat(self):
         self.heartbeat_logger.info(f"{utilities.get_time()} alive")
@@ -174,19 +184,10 @@ class Study(commands.Cog):
                     last_time = self.sync_voice_status_change(user_id, channel, "channel", category_offset)
 
                     if channel == before.channel:
-                        for sorted_set_name in category_key_names:
-                            self.redis_client.zincrby(sorted_set_name,
-                                                      utilities.timedelta_to_hours(utilities.get_time() - last_time),
-                                                      user_id)
+                        utilities.increment_studytime(category_key_names, self.redis_client, user_id,
+                                                      last_time=last_time)
 
-            if (await utilities.get_redis_score(self.redis_client, rank_categories["daily"], user_id)) > \
-                utilities.config["business"][
-                    "min_streak_time"]:
-                streak_name = "has_streak_today_" + str(user_id)
-                if not self.redis_client.exists(streak_name):
-                    await self.add_streak(user_id)
-                self.redis_client.set(streak_name, 1)
-                self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
+            await self.update_streak(rank_categories, user_id)
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -271,20 +272,15 @@ class Study(commands.Cog):
     async def me(self, ctx, user: discord.Member = None):
         if not user:
             user = ctx.author
-        import time
-        start = time.time()
-        for i in range(1):
-            print(i)
-            rank_categories = utilities.get_rank_categories()
-            name = user.name + "#" + user.discriminator
-            user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).first()
-            stats = await utilities.get_user_stats(self.redis_client, user.id)
-            average_per_day = utilities.round_num(
-                stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
+        rank_categories = utilities.get_rank_categories()
+        name = user.name + "#" + user.discriminator
+        user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).first()
+        stats = await utilities.get_user_stats(self.redis_client, user.id)
+        average_per_day = utilities.round_num(
+            stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
 
-            currentStreak = user_sql_obj.current_streak if user_sql_obj else 0
-            longestStreak = user_sql_obj.longest_streak if user_sql_obj else 0
-        print(f'Time: {time.time() - start}')
+        currentStreak = user_sql_obj.current_streak if user_sql_obj else 0
+        longestStreak = user_sql_obj.longest_streak if user_sql_obj else 0
         currentStreak = str(currentStreak) + " day" + ("s" if currentStreak != 1 else "")
         longestStreak = str(longestStreak) + " day" + ("s" if longestStreak != 1 else "")
 
