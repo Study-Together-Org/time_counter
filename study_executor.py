@@ -161,7 +161,7 @@ class Study(commands.Cog):
         user_id = user.id
         last_record = self.get_last_record(user_id, ["start channel", "end channel"])
 
-        if last_record.category == "start channel":
+        if last_record and last_record.category == "start channel":
             past_in_session_time = self.redis_client.hget("in_session", user_id)
             past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
             incr = self.get_in_session_incr(past_in_session_time, last_record.creation_time)
@@ -213,7 +213,7 @@ class Study(commands.Cog):
 
         if before.channel != after.channel:
             last_record = self.get_last_record(user_id, ["start channel", "end channel"])
-            if last_record.category == "start channel":
+            if last_record and last_record.category == "start channel":
                 past_in_session_time = self.redis_client.hget("in_session", user_id)
                 past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
                 self.redis_client.hset("in_session", user_id, 0)
