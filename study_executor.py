@@ -98,6 +98,7 @@ class Study(commands.Cog):
             if last_record.detail != channel.id and categories.index(last_record.category):
                 # Add end for last
                 last_category_offset = categories.index(last_record.category)
+                cur_time += timedelta(microseconds=1)
                 record = Action(user_id=user_id, category=categories[1 - last_category_offset],
                                 detail=last_record.detail,
                                 creation_time=cur_time)
@@ -105,6 +106,7 @@ class Study(commands.Cog):
                 if category_offset == 0:
                     # Add start for cur
                     # A bit inelegant when a user with video on switches to another channel
+                    cur_time += timedelta(microseconds=1)
                     record = Action(user_id=user_id, category=categories[last_category_offset], detail=channel.id,
                                     creation_time=cur_time)
                     self.sqlalchemy_session.add(record)
@@ -115,10 +117,12 @@ class Study(commands.Cog):
             # end id_1
             # end id_2
             elif last_record.category == cur_category:
+                cur_time += timedelta(microseconds=1)
                 record = Action(user_id=user_id, category=categories[1 - category_offset], detail=last_record.detail,
                                 creation_time=cur_time)
                 self.sqlalchemy_session.add(record)
 
+        cur_time += timedelta(microseconds=1)
         record = Action(user_id=user_id, category=cur_category, detail=channel.id,
                         creation_time=cur_time)
         self.sqlalchemy_session.add(record)
