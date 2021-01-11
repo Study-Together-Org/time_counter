@@ -3,7 +3,6 @@ import json
 import pandas as pd
 from sqlalchemy.orm import sessionmaker
 
-import models
 from models import *
 
 load_dotenv("dev.env")
@@ -37,7 +36,8 @@ def insert_sorted_set():
     filter_time_fn_li = [utilities.get_day_start, utilities.get_week_start, utilities.get_month_start,
                          utilities.get_earliest_start]
 
-    for (category_name, sorted_set_name), filter_time_fn in zip(utilities.rank_categories.items(), filter_time_fn_li):
+    category_key_names = utilities.get_rank_categories().values()
+    for (category_name, sorted_set_name), filter_time_fn in zip(category_key_names, filter_time_fn_li):
         if category_name not in dictionary:
             print(f"{category_name} missing")
             continue

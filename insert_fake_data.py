@@ -1,19 +1,12 @@
 # TODO test - Worry about duplicate random samples if CDCI
-import json
 import random
-import redis
-import os
-from dotenv import load_dotenv
-import utilities
-import models
-from sqlalchemy.orm import sessionmaker
-import pandas as pd
-from faker import Faker
-from collections import defaultdict
-from sqlalchemy import create_engine
-from models import *
+
 import numpy as np
-from sqlalchemy.ext.declarative import declarative_base
+import pandas as pd
+from sqlalchemy.orm import sessionmaker
+
+import models
+from models import *
 
 load_dotenv("dev.env")
 seed = int(os.getenv("seed"))
@@ -70,8 +63,8 @@ def generate_df():
 def generate_sorted_set():
     filter_time_fn_li = [utilities.get_day_start, utilities.get_week_start, utilities.get_month_start,
                          utilities.get_earliest_start]
-
-    for sorted_set_name, filter_time_fn in zip(utilities.rank_categories.values(), filter_time_fn_li):
+    category_key_names = utilities.get_rank_categories().values()
+    for sorted_set_name, filter_time_fn in zip(category_key_names, filter_time_fn_li):
         query = sqlalchemy_session.query(Action.user_id, Action.category, Action.creation_time) \
             .filter(Action.category.in_(['start channel', 'end channel']))
         if filter_time_fn:
@@ -85,7 +78,7 @@ def generate_sorted_set():
         to_insert = agg["study_time"].to_dict()
         redis_client.zadd(sorted_set_name, to_insert)
 
-        if sorted_set_name == utilities.rank_categories["monthly"]:
+        if sorted_set_name == utilities.get_rank_categories()["monthly"]:
             if os.getenv("mode") == "test":
                 for user_id in to_insert:
                     to_insert[user_id] += utilities.generate_random_number(length=3)[0]

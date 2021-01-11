@@ -33,6 +33,17 @@ role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) f
 role_names = list(role_settings.keys())
 
 
+def get_rank_categories():
+    rank_categories = {
+        "daily": f"{get_day_start()}_daily",
+        "weekly": f"{get_week_start()}_weekly",
+        "monthly": f"{get_month()}_monthly",
+        "all_time": "all_time"
+    }
+
+    return rank_categories
+
+
 def get_logger(job_name, filename):
     logger = logging.getLogger(job_name)
     logger.setLevel(logging.INFO)
@@ -79,7 +90,7 @@ def get_day_start():
     dt = datetime.combine(datetime.utcnow().date(), datetime.min.time())
     offset = timedelta(hours=config["business"]["update_time"])
 
-    if datetime.utcnow() - dt < offset:
+    if datetime.utcnow() < dt + offset:
         offset -= timedelta(days=1)
 
     return dt + offset
@@ -278,8 +289,8 @@ async def get_redis_score(redis_client, sorted_set_name, user_id):
 
 async def get_user_stats(redis_client, user_id):
     stats = dict()
-
-    for sorted_set_name in list(rank_categories.values()) + ["all_time"]:
+    category_key_names = get_rank_categories().values()
+    for sorted_set_name in list(category_key_names) + ["all_time"]:
         stats[sorted_set_name] = {
             "rank": await get_redis_rank(redis_client, sorted_set_name, user_id),
             "study_time": await get_redis_score(redis_client, sorted_set_name, user_id)
@@ -304,11 +315,3 @@ def sleep(seconds):
         sys.stdout.write("{:2d} seconds remaining.".format(remaining))
         sys.stdout.flush()
         time.sleep(1)
-
-
-rank_categories = {
-    "daily": f"{get_day_start()}_daily",
-    "weekly": f"{get_week_start()}_weekly",
-    "monthly": f"{get_month()}_monthly",
-    "all_time": "all_time"
-}

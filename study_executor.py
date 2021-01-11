@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
 
 import utilities
-from utilities import rank_categories
 from models import Action, User
 
 load_dotenv("dev.env")
@@ -71,10 +70,8 @@ class Study(commands.Cog):
 
         return id_with_score
 
-    async def get_neighbor_stats(self, user_id):
-        sorted_set_name = rank_categories["monthly"]
+    async def get_neighbor_stats(self, sorted_set_name, user_id):
         rank = await utilities.get_redis_rank(self.redis_client, sorted_set_name, user_id)
-
         id_with_score = await self.get_info_from_leaderboard(sorted_set_name, rank - 5, rank + 5)
 
         return id_with_score
@@ -168,13 +165,16 @@ class Study(commands.Cog):
         if before.self_mute != after.self_mute:
             self.sync_voice_status_change(user_id, after.channel, "voice", not bool(after.self_mute))
 
+        rank_categories = utilities.get_rank_categories()
+        category_key_names = rank_categories.values()
+
         if before.channel != after.channel:
             for category_offset, channel in enumerate([before.channel, after.channel]):
                 if channel:
                     last_time = self.sync_voice_status_change(user_id, channel, "channel", category_offset)
 
                     if channel == before.channel:
-                        for sorted_set_name in rank_categories.values():
+                        for sorted_set_name in category_key_names:
                             self.redis_client.zincrby(sorted_set_name,
                                                       utilities.timedelta_to_hours(utilities.get_time() - last_time),
                                                       user_id)
@@ -205,12 +205,14 @@ class Study(commands.Cog):
 
         name = f"{user.name} #{user.discriminator}"
         user_id = user.id
+        rank_categories = utilities.get_rank_categories()
 
         hours_cur_month = await utilities.get_redis_score(self.redis_client, rank_categories["monthly"], user_id)
         if not hours_cur_month:
             hours_cur_month = 0
 
         role, next_role, time_to_next_role = utilities.get_role_status(self.role_name_to_obj, hours_cur_month)
+        # TODO update user roles
 
         text = f"""
         **User:** ``{name}``\n
@@ -228,13 +230,15 @@ class Study(commands.Cog):
 
     @commands.command(aliases=['top'])
     async def lb(self, ctx, *, page: int = None, user: discord.Member = None):
+        rank_categories = utilities.get_rank_categories()
+
         if not page:
             # if the user has not specified someone else
             if not user:
                 user = ctx.author
 
             user_id = user.id
-            leaderboard = await self.get_neighbor_stats(user_id)
+            leaderboard = await self.get_neighbor_stats(rank_categories["monthly"], user_id)
         else:
             if page < 1:
                 await ctx.send("You can't look page 0 or a minus number.")
@@ -267,15 +271,20 @@ class Study(commands.Cog):
     async def me(self, ctx, user: discord.Member = None):
         if not user:
             user = ctx.author
+        import time
+        start = time.time()
+        for i in range(1):
+            print(i)
+            rank_categories = utilities.get_rank_categories()
+            name = user.name + "#" + user.discriminator
+            user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).first()
+            stats = await utilities.get_user_stats(self.redis_client, user.id)
+            average_per_day = utilities.round_num(
+                stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
 
-        name = user.name + "#" + user.discriminator
-        user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).first()
-        stats = await utilities.get_user_stats(self.redis_client, user.id)
-        average_per_day = utilities.round_num(
-            stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
-
-        currentStreak = user_sql_obj.current_streak if user_sql_obj else 0
-        longestStreak = user_sql_obj.longest_streak if user_sql_obj else 0
+            currentStreak = user_sql_obj.current_streak if user_sql_obj else 0
+            longestStreak = user_sql_obj.longest_streak if user_sql_obj else 0
+        print(f'Time: {time.time() - start}')
         currentStreak = str(currentStreak) + " day" + ("s" if currentStreak != 1 else "")
         longestStreak = str(longestStreak) + " day" + ("s" if longestStreak != 1 else "")
 
