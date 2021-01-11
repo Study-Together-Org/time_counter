@@ -1,7 +1,7 @@
 import asyncio
 import os
-
 import discord
+from datetime import datetime, timedelta, timezone
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
@@ -76,14 +76,19 @@ class Study(commands.Cog):
 
         return id_with_score
 
-    def sync_voice_status_change(self, user_id, channel, category_type, category_offset):
-        cur_time = utilities.get_time()
-        categories = [i + " " + category_type for i in ["end", "start"]]
-        cur_category = categories[category_offset]
+    def get_last_record(self, user_id, categories):
         last_record = self.sqlalchemy_session.query(Action) \
             .filter(Action.user_id == user_id) \
             .filter(Action.category.in_(categories)) \
             .order_by(Action.creation_time.desc()).limit(1).first()
+
+        return last_record
+
+    def sync_voice_status_change(self, user_id, channel, category_type, category_offset):
+        cur_time = utilities.get_time()
+        categories = [i + " " + category_type for i in ["end", "start"]]
+        cur_category = categories[category_offset]
+        last_record = self.get_last_record(user_id, categories)
 
         # data recovery
         if last_record:
@@ -138,6 +143,34 @@ class Study(commands.Cog):
             self.redis_client.set(streak_name, 1)
             self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
 
+    def get_in_session_incr(self, past_in_session_time, last_record_time):
+        cur_time = utilities.get_time()
+        incr = utilities.timedelta_to_hours(cur_time - last_record_time) - past_in_session_time
+
+        if incr < 0:
+            self.time_counter_logger.info(f'incr lower than 0 {incr}')
+
+        return incr
+
+    async def update_stats(self, ctx):
+        user = ctx.author
+
+        if not (user.voice and user.voice.channel.category.id in monitored_categories):
+            return
+
+        user_id = user.id
+        last_record = self.get_last_record(user_id, ["start channel", "end channel"])
+
+        if last_record.category == "start channel":
+            past_in_session_time = self.redis_client.hget("in_session", user_id)
+            past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
+            incr = self.get_in_session_incr(past_in_session_time, last_record.creation_time)
+            self.redis_client.hset("in_session", user_id, incr + past_in_session_time)
+            category_key_names = utilities.get_rank_categories().values()
+            utilities.increment_studytime(category_key_names, self.redis_client, user_id, incr=incr)
+            rank_categories = utilities.get_rank_categories()
+            await self.update_streak(rank_categories, user_id)
+
     @tasks.loop(seconds=int(os.getenv("heartbeat_interval_sec")))
     async def make_heartbeat(self):
         self.heartbeat_logger.info(f"{utilities.get_time()} alive")
@@ -179,10 +212,18 @@ class Study(commands.Cog):
         category_key_names = rank_categories.values()
 
         if before.channel != after.channel:
+            last_record = self.get_last_record(user_id, ["start channel", "end channel"])
+            if last_record.category == "start channel":
+                past_in_session_time = self.redis_client.hget("in_session", user_id)
+                past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
+                self.redis_client.hset("in_session", user_id, 0)
+                incr = self.get_in_session_incr(past_in_session_time, last_record.creation_time)
+                utilities.increment_studytime(category_key_names, self.redis_client, user_id,
+                                              incr=incr - past_in_session_time)
+
             for category_offset, channel in enumerate([before.channel, after.channel]):
                 if channel:
                     last_time = self.sync_voice_status_change(user_id, channel, "channel", category_offset)
-
                     if channel == before.channel:
                         utilities.increment_studytime(category_key_names, self.redis_client, user_id,
                                                       last_time=last_time)
@@ -199,6 +240,7 @@ class Study(commands.Cog):
             self.sqlalchemy_session.commit()
 
     @commands.command(aliases=["rank"])
+    @commands.before_invoke(update_stats)
     async def p(self, ctx, user: discord.Member = None):
         # if the user has not specified someone else
         if not user:
@@ -230,6 +272,7 @@ class Study(commands.Cog):
         await ctx.send(embed=emb)
 
     @commands.command(aliases=['top'])
+    @commands.before_invoke(update_stats)
     async def lb(self, ctx, *, page: int = None, user: discord.Member = None):
         rank_categories = utilities.get_rank_categories()
 
@@ -269,6 +312,7 @@ class Study(commands.Cog):
             self.time_counter_logger.error(f"{utilities.get_time()} {error}")
 
     @commands.command()
+    @commands.before_invoke(update_stats)
     async def me(self, ctx, user: discord.Member = None):
         if not user:
             user = ctx.author
