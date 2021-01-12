@@ -133,7 +133,7 @@ class Study(commands.Cog):
     async def add_streak(self, user_id):
         user = self.sqlalchemy_session.query(User).filter(User.id == user_id).first()
         user.current_streak += 1
-        if user.longest_streak == user.current_streak:
+        if user.longest_streak < user.current_streak:
             user.longest_streak += 1
         self.sqlalchemy_session.commit()
 
