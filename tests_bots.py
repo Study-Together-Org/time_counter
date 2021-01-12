@@ -94,21 +94,25 @@ async def test_in_session(interface):
     prev_stats = await utilities.get_user_stats(redis_client, bot_id)
     voice_channel = [channel for channel in guild.voice_channels if "screen/cam" in channel.name][1]
     voice_client = await voice_channel.connect()
-    utilities.sleep(time_to_stay * 7)
 
+    multiplier = 2
+    utilities.sleep(time_to_stay * multiplier)
     await guild.system_channel.send(os.getenv("prefix") + "me")
     mid_stats = await utilities.get_user_stats(redis_client, bot_id)
     diff = utilities.get_stats_diff(prev_stats, mid_stats)
-    is_all_increment_right = [hours * 3600 - time_to_stay * 7 <= redis_tolerance for hours in diff]
+    excess = [hours * 3600 - time_to_stay * multiplier for hours in diff]
+    is_all_increment_right = [hours <= redis_tolerance for hours in excess]
     assert all(is_all_increment_right)
 
-    utilities.sleep(time_to_stay * 10)
+    multiplier = 5
+    utilities.sleep(time_to_stay * multiplier)
     await voice_client.disconnect()
     await guild.system_channel.send(os.getenv("prefix") + "me")
     utilities.sleep(1)
     cur_stats = await utilities.get_user_stats(redis_client, bot_id)
     diff = utilities.get_stats_diff(mid_stats, cur_stats)
-    is_all_increment_right = [hours * 3600 - time_to_stay * 10 <= redis_tolerance for hours in diff]
+    excess = [hours * 3600 - time_to_stay * multiplier for hours in diff]
+    is_all_increment_right = [hours <= redis_tolerance for hours in excess]
     assert all(is_all_increment_right)
 
 

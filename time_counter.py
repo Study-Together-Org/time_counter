@@ -159,6 +159,7 @@ class Study(commands.Cog):
         return incr
 
     async def update_stats(self, ctx):
+        # await ctx.send("I am in test and the data is from 1/10")
         user = ctx.author
 
         if not (user.voice and user.voice.channel.category.id in monitored_categories):
