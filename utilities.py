@@ -68,7 +68,7 @@ def recreate_db(Base):
     Base.metadata.create_all(engine)
 
 
-def get_engine(echo=True):
+def get_engine(echo=False):
     # if os.getenv("mode") != "test":
     #     echo = False
 
@@ -119,7 +119,7 @@ def get_month():
 
 
 def timedelta_to_hours(td):
-    return round_num(td.total_seconds() / 3600)
+    return td.total_seconds() / 3600
 
 
 def round_num(num, ndigits=2):
@@ -299,7 +299,7 @@ async def get_user_stats(redis_client, user_id):
     return stats
 
 
-def check_stats_diff(prev_stats, cur_stats):
+def get_stats_diff(prev_stats, cur_stats):
     prev_studytime = [item["study_time"] for item in prev_stats.values()]
     cur_studytime = [item["study_time"] for item in cur_stats.values()]
     diff = [round_num(cur - prev) for prev, cur in zip(prev_studytime, cur_studytime)]
@@ -308,6 +308,7 @@ def check_stats_diff(prev_stats, cur_stats):
 
 
 def sleep(seconds):
+    # TODO print decimals
     seconds = math.ceil(seconds)
 
     for remaining in range(seconds, 0, -1):
@@ -320,6 +321,6 @@ def sleep(seconds):
 def increment_studytime(category_key_names, redis_client, user_id, incr=None, last_time=None):
     if incr is None:
         incr = timedelta_to_hours(get_time() - last_time)
-
+    print(incr)
     for sorted_set_name in category_key_names:
         redis_client.zincrby(sorted_set_name, incr, user_id)

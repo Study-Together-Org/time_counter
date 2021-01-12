@@ -30,6 +30,7 @@ class Study(commands.Cog):
         self.supporter_role = None
         self.sqlalchemy_session = None
 
+        # TODO fix when files not existent
         self.time_counter_logger = utilities.get_logger("study_executor_time_counter", "discord.log")
         self.heartbeat_logger = utilities.get_logger("study_executor_heartbeat", "heartbeat.log")
         self.redis_client = utilities.get_redis_client()
@@ -216,22 +217,23 @@ class Study(commands.Cog):
         category_key_names = rank_categories.values()
 
         if before.channel != after.channel:
-            last_record = self.get_last_record(user_id, ["start channel", "end channel"])
-            if last_record and last_record.category == "start channel":
+            for category_offset, channel in enumerate([before.channel, after.channel]):
+                if channel:
+                    self.sync_voice_status_change(user_id, channel, "channel", category_offset)
+            if before.channel:
+                # after data recovery we should have a sensible start channel record
+                last_record = self.get_last_record(user_id, ["start channel"])
                 past_in_session_time = self.redis_client.hget("in_session", user_id)
                 past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
                 self.redis_client.hset("in_session", user_id, 0)
-                incr = self.get_in_session_incr(past_in_session_time, last_record.creation_time)
-                utilities.increment_studytime(category_key_names, self.redis_client, user_id,
-                                              incr=incr - past_in_session_time)
-
-            for category_offset, channel in enumerate([before.channel, after.channel]):
-                if channel:
-                    last_time = self.sync_voice_status_change(user_id, channel, "channel", category_offset)
-                    if channel == before.channel:
-                        utilities.increment_studytime(category_key_names, self.redis_client, user_id,
-                                                      last_time=last_time)
-
+                # incr = self.get_in_session_incr(past_in_session_time, last_record.creation_time)
+                cur_time = utilities.get_time()
+                incr = utilities.timedelta_to_hours(cur_time - last_record.creation_time) - past_in_session_time
+                utilities.increment_studytime(category_key_names, self.redis_client, user_id, incr=incr)
+                print("cur_time", cur_time)
+                print("last_time", last_record.creation_time)
+                print("past_in_session_time", past_in_session_time)
+                print("incr", incr)
             await self.update_streak(rank_categories, user_id)
 
     @commands.Cog.listener()

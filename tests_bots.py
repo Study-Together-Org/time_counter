@@ -14,7 +14,8 @@ bot = None
 guild = None
 bot_id = None
 time_to_stay = 3600 / (10 ** int(os.getenv("test_display_num_decimal")))
-time_tolerance = timedelta(seconds=.1)
+db_tolerance = timedelta(seconds=.1)
+redis_tolerance = 3.6 * 2
 
 redis_client = utilities.get_redis_client()
 engine = utilities.get_engine()
@@ -31,7 +32,7 @@ async def test_init(interface):
 
 
 @test_collector()
-async def test_incr(interface):
+async def test_start_end_channel_incr(interface):
     await guild.system_channel.send(os.getenv("prefix") + "me")
     prev_stats = await utilities.get_user_stats(redis_client, bot_id)
     voice_channel = [channel for channel in guild.voice_channels if "screen/cam" in channel.name][1]
@@ -41,12 +42,12 @@ async def test_incr(interface):
     await voice_client.disconnect()
     end_channel_time = utilities.get_time()
     await guild.system_channel.send(os.getenv("prefix") + "me")
-    utilities.sleep(3)
+    utilities.sleep(1)
     cur_stats = await utilities.get_user_stats(redis_client, bot_id)
     # TODO test - use fields to check description?
     # reply = await guild.system_channel.history(limit=1).flatten()[0].embeds[0].description
-    diff = utilities.check_stats_diff(prev_stats, cur_stats)
-    is_all_increment_right = [hours * 3600 == time_to_stay for hours in diff]
+    diff = utilities.get_stats_diff(prev_stats, cur_stats)
+    is_all_increment_right = [hours * 3600 - time_to_stay <= redis_tolerance for hours in diff]
     assert all(is_all_increment_right)
 
     # Check SQL
@@ -58,8 +59,8 @@ async def test_incr(interface):
 
     assert (records[0].category == "start channel")
     assert (records[0].detail == records[1].detail == voice_channel.id)
-    assert (records[0].creation_time - start_channel_time < time_tolerance)
-    assert (records[1].creation_time - end_channel_time < time_tolerance)
+    assert (records[0].creation_time - start_channel_time <= db_tolerance)
+    assert (records[1].creation_time - end_channel_time <= db_tolerance)
 
 
 @test_collector()
@@ -84,6 +85,31 @@ async def test_lb_with_page(interface):
 async def test_me(interface):
     embed = Embed(title=utilities.config["embed_titles"]["me"])
     await interface.assert_reply_embed_equals(os.getenv("prefix") + "me", embed, attributes_to_check=["title"])
+
+
+@test_collector()
+async def test_in_session(interface):
+    # TODO find out why this test can't be before test_p
+    await guild.system_channel.send(os.getenv("prefix") + "me")
+    prev_stats = await utilities.get_user_stats(redis_client, bot_id)
+    voice_channel = [channel for channel in guild.voice_channels if "screen/cam" in channel.name][1]
+    voice_client = await voice_channel.connect()
+    utilities.sleep(time_to_stay * 7)
+
+    await guild.system_channel.send(os.getenv("prefix") + "me")
+    mid_stats = await utilities.get_user_stats(redis_client, bot_id)
+    diff = utilities.get_stats_diff(prev_stats, mid_stats)
+    is_all_increment_right = [hours * 3600 - time_to_stay * 7 <= redis_tolerance for hours in diff]
+    assert all(is_all_increment_right)
+
+    utilities.sleep(time_to_stay * 10)
+    await voice_client.disconnect()
+    await guild.system_channel.send(os.getenv("prefix") + "me")
+    utilities.sleep(1)
+    cur_stats = await utilities.get_user_stats(redis_client, bot_id)
+    diff = utilities.get_stats_diff(mid_stats, cur_stats)
+    is_all_increment_right = [hours * 3600 - time_to_stay * 10 <= redis_tolerance for hours in diff]
+    assert all(is_all_increment_right)
 
 
 # TODO test - Write case for new member + each role...
