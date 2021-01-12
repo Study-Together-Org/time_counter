@@ -53,8 +53,8 @@ class Study(commands.Cog):
 
             return utilities.generate_username()[0]
 
-        user = self.bot.get_user(int(user_id))
-        return f"{user.name} #{user.discriminator}"
+        user = await self.bot.fetch_user(int(user_id))
+        return f"{user.name} #{user.discriminator}" if user else "(account deleted)"
 
     async def get_info_from_leaderboard(self, sorted_set_name, start=0, end=-1):
         if start < 0:
@@ -224,19 +224,17 @@ class Study(commands.Cog):
             if before.channel:
                 # after data recovery we should have a sensible start channel record
                 last_record = self.get_last_record(user_id, ["start channel"])
+                cur_time = utilities.get_time()
+                last_record_time = last_record.creation_time if last_record else cur_time
                 past_in_session_time = self.redis_client.hget("in_session", user_id)
                 past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
                 self.redis_client.hset("in_session", user_id, 0)
-                cur_time = utilities.get_time()
-                incr = utilities.timedelta_to_hours(cur_time - last_record.creation_time) - past_in_session_time
+                incr = utilities.timedelta_to_hours(cur_time - last_record_time) - past_in_session_time
                 utilities.increment_studytime(category_key_names, self.redis_client, user_id, incr=incr)
             await self.update_streak(rank_categories, user_id)
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        if not self.sqlalchemy_session:
-            return
-
         user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == member.id).all()
 
         if not user_sql_obj:
