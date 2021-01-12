@@ -374,5 +374,5 @@ def setup(bot):
 
 if __name__ == '__main__':
     client = commands.Bot(command_prefix=os.getenv("prefix"), intents=Intents.all())
-    client.load_extension('study_executor')
+    client.load_extension('time_counter')
     client.run(os.getenv('bot_token'))
