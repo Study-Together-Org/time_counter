@@ -1,6 +1,7 @@
 import asyncio
 import os
 import discord
+from discord import Intents
 from datetime import datetime, timedelta, timezone
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
@@ -230,10 +231,6 @@ class Study(commands.Cog):
                 cur_time = utilities.get_time()
                 incr = utilities.timedelta_to_hours(cur_time - last_record.creation_time) - past_in_session_time
                 utilities.increment_studytime(category_key_names, self.redis_client, user_id, incr=incr)
-                print("cur_time", cur_time)
-                print("last_time", last_record.creation_time)
-                print("past_in_session_time", past_in_session_time)
-                print("incr", incr)
             await self.update_streak(rank_categories, user_id)
 
     @commands.Cog.listener()
@@ -373,3 +370,9 @@ def setup(bot):
             return False
 
     bot.add_check(botSpam)
+
+
+if __name__ == '__main__':
+    client = commands.Bot(command_prefix=os.getenv("prefix"), intents=Intents.all())
+    client.load_extension('study_executor')
+    client.run(os.getenv('bot_token'))
