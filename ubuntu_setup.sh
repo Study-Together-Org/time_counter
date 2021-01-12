@@ -25,6 +25,6 @@ python insert_real_data.py  # optional
 touch discord.log
 touch heartbeat.log
 
-nohup python main.py 2>&1 > main.log
+nohup python main_study_counter.py 2>&1 > main.log
 tail -F discord.log
 # wait for login log to show

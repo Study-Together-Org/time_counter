@@ -313,9 +313,6 @@ class Study(commands.Cog):
     async def lb_error(self, ctx, error):
         if isinstance(error, commands.errors.BadArgument):
             await ctx.send("You provided a wrong argument, more likely you provide an invalid number for the page.")
-        elif not isinstance(error, commands.errors.CheckFailure):
-            await ctx.send("Unknown error, please contact owner.")
-            self.time_counter_logger.error(f"{utilities.get_time()} {error}")
 
     @commands.command()
     @commands.before_invoke(update_stats)
