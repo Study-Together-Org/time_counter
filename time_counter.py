@@ -227,7 +227,6 @@ class Study(commands.Cog):
                 past_in_session_time = self.redis_client.hget("in_session", user_id)
                 past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
                 self.redis_client.hset("in_session", user_id, 0)
-                # incr = self.get_in_session_incr(past_in_session_time, last_record.creation_time)
                 cur_time = utilities.get_time()
                 incr = utilities.timedelta_to_hours(cur_time - last_record.creation_time) - past_in_session_time
                 utilities.increment_studytime(category_key_names, self.redis_client, user_id, incr=incr)
@@ -235,6 +234,9 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
+        if not self.sqlalchemy_session:
+            return
+
         user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == member.id).all()
 
         if not user_sql_obj:
@@ -306,10 +308,10 @@ class Study(commands.Cog):
         lb_embed.set_footer(text=f"Type !text 3 (some number) to see placements from 31 to 40")
         await ctx.send(embed=lb_embed)
 
-    @lb.error
-    async def lb_error(self, ctx, error):
-        if isinstance(error, commands.errors.BadArgument):
-            await ctx.send("You provided a wrong argument, more likely you provide an invalid number for the page.")
+    # @lb.error
+    # async def lb_error(self, ctx, error):
+    #     if isinstance(error, commands.errors.BadArgument):
+    #         await ctx.send("You provided a wrong argument, more likely you provide an invalid number for the page.")
 
     @commands.command()
     @commands.before_invoke(update_stats)

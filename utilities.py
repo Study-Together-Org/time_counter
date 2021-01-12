@@ -321,6 +321,6 @@ def sleep(seconds):
 def increment_studytime(category_key_names, redis_client, user_id, incr=None, last_time=None):
     if incr is None:
         incr = timedelta_to_hours(get_time() - last_time)
-    print(incr)
+
     for sorted_set_name in category_key_names:
         redis_client.zincrby(sorted_set_name, incr, user_id)
