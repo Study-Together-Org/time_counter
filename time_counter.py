@@ -315,6 +315,8 @@ class Study(commands.Cog):
     @commands.command()
     @commands.before_invoke(update_stats)
     async def me(self, ctx, user: discord.Member = None):
+        await ctx.send("**Reset time points are 5 pm, Monday (weekly), 1st (monthly) in GMT + 1**")
+
         if not user:
             user = ctx.author
         rank_categories = utilities.get_rank_categories()
@@ -354,7 +356,6 @@ Longest study streak: {longestStreak}
 
         emb.set_footer(text=foot, icon_url=user.avatar_url)
         await ctx.send(embed=emb)
-        await ctx.send("(Reset time is 5 pm in GMT + 1")
 
 
 def setup(bot):
