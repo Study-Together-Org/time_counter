@@ -46,7 +46,7 @@ def insert_sorted_set():
         to_insert = dictionary[sorted_set_name]
         # TODO handle it smarter in fetch_all
         for k, v in to_insert.items():
-            if type(v) != int:
+            if type(v) != int and type(v) != float:
                 to_insert[k] = locale.atoi(v)
             to_insert[k] /= 60
         redis_client.zadd(sorted_set_name, to_insert)

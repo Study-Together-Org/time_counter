@@ -1,14 +1,22 @@
+import os
+
 import gspread_asyncio as gaio
+import hjson
+import pandas as pd
+from discord import Intents
+from discord.ext import commands
+from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 
-import asyncio
-from pprint import pprint
-# import json
-
-import pandas as pd
 import utilities
-import json
 
+
+load_dotenv("dev.env")
+
+client = commands.Bot(command_prefix=os.getenv("prefix"), intents=Intents.all())
+
+with open("config.hjson") as f:
+    config = hjson.load(f)
 
 def get_creds():
     return ServiceAccountCredentials.from_json_keyfile_name(
@@ -22,8 +30,10 @@ def get_creds():
 
 async def get_sheet(google_client):
     session = await google_client.authorize()
-    sheet1 = (await session.open_by_url("https://docs.google.com/spreadsheets/d/1xvmK6yawHbhtfvi_0Dvp9afWv8mZ5Tn7o_szE1a76ZY/edit")).sheet1
-    sheet2 = (await session.open_by_url("https://docs.google.com/spreadsheets/d/1hsw5l0IXoPK9k9CWXZrW556yAUsUdjtSs9joub4Oa_g/edit")).sheet1
+    sheet1 = (await session.open_by_url(
+        "https://docs.google.com/spreadsheets/d/1xvmK6yawHbhtfvi_0Dvp9afWv8mZ5Tn7o_szE1a76ZY/edit")).sheet1
+    sheet2 = (await session.open_by_url(
+        "https://docs.google.com/spreadsheets/d/1hsw5l0IXoPK9k9CWXZrW556yAUsUdjtSs9joub4Oa_g/edit")).sheet1
     return (sheet1, sheet2)
 
 
@@ -76,24 +86,21 @@ async def main():
     return [df_all_time, df_monthly, df_weekly, df_daily, df_streaks]
 
 
-a = asyncio.get_event_loop().run_until_complete(main())
-res = a[0]
-for i in a[1:]:
-    res = pd.merge(res, i, how="outer", on="Discord username")
+@client.event
+async def on_ready():
+    guild = client.get_guild(utilities.get_guildID())
+    a = await main()
+    res = a[0]
+    for i in a[1:]:
+        res = pd.merge(res, i, how="outer", on="Discord username")
+    # Make ids string to prevent finite precision as Dataframe converts into to floats
+    username_to_id = {member.name + "#" + member.discriminator: str(member.id) for member in guild.members}
+    res["id"] = res["Discord username"].map(username_to_id)
+    res.dropna(subset=["id"], inplace=True)
+    res["id"] = res["id"].astype(int)
+    res.to_csv("./user_files/user_stats.csv", index=False, float_format='{:f}'.format, encoding='utf-8')
 
+    await client.logout()
 
-def df_func(name):
-    return name[:3]
-
-
-with open("user_files/mapping_ids.json") as f:
-    ids = json.load(f)
-
-res["id"] = res["Discord username"].map(ids)
-res.fillna(0, inplace=True)
-res = res[res.all_time != 0]
-res = res[res.id != 0]
-# res = pd.merge(a[0], a[1], how="outer", on="Discord username")
-# res = pd.concat(a, axis=0)
-# print(list(res))
-res.to_csv("./user_files/user_stats.csv", index=False)
+client.run(os.getenv('bot_token'))
+print("Done")

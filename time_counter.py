@@ -304,7 +304,7 @@ class Study(commands.Cog):
         lb_embed = discord.Embed(title=f'{utilities.config["embed_titles"]["lb"]} ({utilities.get_month()})',
                                  description=text)
 
-        lb_embed.set_footer(text=f"Type !text 3 (some number) to see placements from 31 to 40")
+        lb_embed.set_footer(text=f"Type !lb 3 (some number) to see placements from 21 to 31")
         await ctx.send(embed=lb_embed)
 
     # @lb.error
