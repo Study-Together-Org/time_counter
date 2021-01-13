@@ -4,7 +4,7 @@ import pandas as pd
 import locale
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 from sqlalchemy.orm import sessionmaker
-
+import utilities
 from models import *
 
 load_dotenv("dev.env")
@@ -18,6 +18,8 @@ redis_client = utilities.get_redis_client()
 df = pd.read_csv("user_files/user_stats.csv", index_col="id")
 df = df[~df.index.duplicated(keep='first')]
 df.fillna(0, inplace=True)
+daily_name = utilities.get_rank_categories()["daily"]
+df[daily_name] = 0
 df["current_streak"] = df["current_streak"].astype(int)
 df["longest_streak"] = df["longest_streak"].astype(int)
 dictionary = df.to_dict()
