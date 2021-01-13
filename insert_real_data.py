@@ -48,7 +48,7 @@ def insert_sorted_set():
         for k, v in to_insert.items():
             if type(v) != int:
                 to_insert[k] = locale.atoi(v)
-
+            to_insert[k] /= 60
         redis_client.zadd(sorted_set_name, to_insert)
 
 

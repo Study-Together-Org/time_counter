@@ -354,6 +354,7 @@ Longest study streak: {longestStreak}
 
         emb.set_footer(text=foot, icon_url=user.avatar_url)
         await ctx.send(embed=emb)
+        await ctx.send("(Reset time is 5 pm in GMT + 1")
 
 
 def setup(bot):
