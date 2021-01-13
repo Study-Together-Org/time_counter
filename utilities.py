@@ -225,6 +225,7 @@ def get_role_status(role_name_to_obj, hours_cur_month):
         else:
             next_role_name = role_name
             break
+
     cur_role = role_name_to_obj[cur_role_name]
     # new members
     if hours_cur_month < role_name_to_begin_hours[cur_role_name]:

@@ -41,7 +41,7 @@ class Study(commands.Cog):
         if not self.guild:
             self.guild = self.bot.get_guild(utilities.get_guildID())
 
-        self.role_name_to_obj = {role.name: role for role in self.guild.roles}
+        self.role_name_to_obj = {role.name: {"name": role.name, "mention": role.mention} for role in self.guild.roles}
         self.supporter_role = self.guild.get_role(
             utilities.config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "supporter"])
 
@@ -264,9 +264,9 @@ class Study(commands.Cog):
         text = f"""
         **User:** ``{name}``\n
         __Study role__ ({utilities.get_time().strftime("%B")})
-        **Current study role:** {role.mention if role else "No Role"}
-        **Next study role:** {next_role.mention if next_role else "``👑 Highest rank reached``"}
-        **Role rank:** ``{'👑 ' if role and utilities.role_names.index(role.name) + 1 == {len(utilities.role_settings)} else ''}{utilities.role_names.index(role.name) + 1 if role else '0'}/{len(utilities.role_settings)}``
+        **Current study role:** {role["mention"] if role else "No Role"}
+        **Next study role:** {next_role["mention"] if next_role else "``👑 Highest rank reached``"}
+        **Role rank:** ``{'👑 ' if role and utilities.role_names.index(role["name"]) + 1 == {len(utilities.role_settings)} else ''}{utilities.role_names.index(role["name"]) + 1 if role else '0'}/{len(utilities.role_settings)}``
         """
 
         if time_to_next_role:
