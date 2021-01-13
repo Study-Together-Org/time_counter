@@ -57,7 +57,7 @@ async def main():
     sheet2 = sheets[1]
 
     names = utilities.get_rank_categories()
-
+    print(names)
     all_time = pair_data(sheet.range("J2:K" + str(sheet.row_count)), 2, names["all_time"])
     df_all_time = pd.DataFrame(all_time[1:], columns=all_time[0])
 
@@ -95,6 +95,5 @@ res = res[res.all_time != 0]
 res = res[res.id != 0]
 # res = pd.merge(a[0], a[1], how="outer", on="Discord username")
 # res = pd.concat(a, axis=0)
-pprint(res)
-print(type(res))
-res.to_csv("user_stats.csv", index=False)
+# print(list(res))
+res.to_csv("./user_files/user_stats.csv", index=False)
