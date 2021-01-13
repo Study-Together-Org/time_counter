@@ -1,7 +1,6 @@
 /1.0/
-user_stats.json
 creds.json
-mapping_ids.json
+user_files/*
 
 # miscellaneous
 *.idea

@@ -86,7 +86,7 @@ def df_func(name):
     return name[:3]
 
 
-with open("mapping_ids.json") as f:
+with open("user_files/mapping_ids.json") as f:
     ids = json.load(f)
 
 res["id"] = res["Discord username"].map(ids)
@@ -97,3 +97,4 @@ res = res[res.id != 0]
 # res = pd.concat(a, axis=0)
 pprint(res)
 print(type(res))
+res.to_csv("user_stats.csv", index=False)
