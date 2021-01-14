@@ -74,6 +74,7 @@ class Study(commands.Cog):
 
     async def get_neighbor_stats(self, sorted_set_name, user_id):
         rank = await utilities.get_redis_rank(self.redis_client, sorted_set_name, user_id)
+        rank -= 1  # Use 0 index
         id_with_score = await self.get_info_from_leaderboard(sorted_set_name, rank - 5, rank + 5)
 
         return id_with_score
@@ -300,11 +301,12 @@ class Study(commands.Cog):
 
         for person in leaderboard:
             name = (await self.get_discord_name(person["discord_user_id"]))[:40]
-            text += f'`{(person["rank"] or 0):>5}.` {person["study_time"]:<06} h {name}\n'
+            style = "**" if user and person["discord_user_id"] == user.id else ""
+            text += f'`{(person["rank"] or 0):>5}.` {style}{person["study_time"]:<06} h {name}{style}\n'
         lb_embed = discord.Embed(title=f'{utilities.config["embed_titles"]["lb"]} ({utilities.get_month()})',
                                  description=text)
 
-        lb_embed.set_footer(text=f"Type !lb 3 (some number) to see placements from 21 to 31")
+        lb_embed.set_footer(text=f"Type ~lb 3 (some number) to see placements from 21 to 31")
         await ctx.send(embed=lb_embed)
 
     # @lb.error
