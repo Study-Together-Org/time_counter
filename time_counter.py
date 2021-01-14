@@ -53,8 +53,8 @@ class Study(commands.Cog):
 
             return utilities.generate_username()[0]
 
-        # user = await self.bot.fetch_user(int(user_id))
-        user = self.bot.get_user(int(user_id))
+        # Handle deleted users
+        user = self.bot.get_user(int(user_id) or await self.bot.fetch_user(int(user_id))
         return f"{user.name} #{user.discriminator}" if user else "(account deleted)"
 
     async def get_info_from_leaderboard(self, sorted_set_name, start=0, end=-1):
