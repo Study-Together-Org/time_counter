@@ -53,7 +53,8 @@ class Study(commands.Cog):
 
             return utilities.generate_username()[0]
 
-        user = await self.bot.fetch_user(int(user_id))
+        # user = await self.bot.fetch_user(int(user_id))
+        user = self.bot.get_user(int(user_id))
         return f"{user.name} #{user.discriminator}" if user else "(account deleted)"
 
     async def get_info_from_leaderboard(self, sorted_set_name, start=0, end=-1):
@@ -66,14 +67,14 @@ class Study(commands.Cog):
         for neighbor_id in id_li:
             res = dict()
             res["discord_user_id"] = neighbor_id
-            res["rank"] = utilities.get_redis_rank(self.redis_client, sorted_set_name, neighbor_id)
-            res["study_time"] = utilities.get_redis_score(self.redis_client, sorted_set_name, neighbor_id)
+            res["rank"] = await utilities.get_redis_rank(self.redis_client, sorted_set_name, neighbor_id)
+            res["study_time"] = await utilities.get_redis_score(self.redis_client, sorted_set_name, neighbor_id)
             id_with_score.append(res)
 
         return id_with_score
 
     async def get_neighbor_stats(self, sorted_set_name, user_id):
-        rank = utilities.get_redis_rank(self.redis_client, sorted_set_name, user_id)
+        rank = await utilities.get_redis_rank(self.redis_client, sorted_set_name, user_id)
         rank -= 1  # Use 0 index
         id_with_score = await self.get_info_from_leaderboard(sorted_set_name, rank - 5, rank + 5)
 
@@ -141,7 +142,7 @@ class Study(commands.Cog):
         self.sqlalchemy_session.commit()
 
     async def update_streak(self, rank_categories, user_id):
-        if (utilities.get_redis_score(self.redis_client, rank_categories["daily"], user_id)) > \
+        if (await utilities.get_redis_score(self.redis_client, rank_categories["daily"], user_id)) > \
             utilities.config["business"][
                 "min_streak_time"]:
             streak_name = "has_streak_today_" + str(user_id)
@@ -255,7 +256,7 @@ class Study(commands.Cog):
         user_id = user.id
         rank_categories = utilities.get_rank_categories()
 
-        hours_cur_month = utilities.get_redis_score(self.redis_client, rank_categories["monthly"], user_id)
+        hours_cur_month = await utilities.get_redis_score(self.redis_client, rank_categories["monthly"], user_id)
         if not hours_cur_month:
             hours_cur_month = 0
 
