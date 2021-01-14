@@ -273,7 +273,7 @@ def kill_last_process(line):
         pass
 
 
-async def get_redis_rank(redis_client, sorted_set_name, user_id):
+def get_redis_rank(redis_client, sorted_set_name, user_id):
     rank = redis_client.zrevrank(sorted_set_name, user_id)
 
     if rank is None:
@@ -283,7 +283,7 @@ async def get_redis_rank(redis_client, sorted_set_name, user_id):
     return 1 + rank
 
 
-async def get_redis_score(redis_client, sorted_set_name, user_id):
+def get_redis_score(redis_client, sorted_set_name, user_id):
     score = redis_client.zscore(sorted_set_name, user_id) or 0
     return round_num(score)
 
@@ -293,8 +293,8 @@ async def get_user_stats(redis_client, user_id):
     category_key_names = get_rank_categories().values()
     for sorted_set_name in list(category_key_names) + ["all_time"]:
         stats[sorted_set_name] = {
-            "rank": await get_redis_rank(redis_client, sorted_set_name, user_id),
-            "study_time": await get_redis_score(redis_client, sorted_set_name, user_id)
+            "rank": get_redis_rank(redis_client, sorted_set_name, user_id),
+            "study_time": get_redis_score(redis_client, sorted_set_name, user_id)
         }
 
     return stats
