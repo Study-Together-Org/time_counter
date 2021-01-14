@@ -334,15 +334,15 @@ class Study(commands.Cog):
         currentStreak = str(currentStreak) + " day" + ("s" if currentStreak != 1 else "")
         longestStreak = str(longestStreak) + " day" + ("s" if longestStreak != 1 else "")
 
-        num_nums_var_name = ("test_" if os.getenv("mode") == "test" else "") + "display_num_decimal"
-        num_nums = int(os.getenv(num_nums_var_name)) + 5
+        num_dec = int(os.getenv(("test_" if os.getenv("mode") == "test" else "") + "display_num_decimal"))
+        width = 5 + num_dec
         text = f"""
 ```glsl
-Timeframe         Hours    Place\n
-Daily:         {stats[rank_categories["daily"]]["study_time"]:>{num_nums}}h   #{stats[rank_categories["daily"]]["rank"]}
-Weekly:        {stats[rank_categories["weekly"]]["study_time"]:>{num_nums}}h   #{stats[rank_categories["weekly"]]["rank"]}
-Monthly:       {stats[rank_categories["monthly"]]["study_time"]:>{num_nums}}h   #{stats[rank_categories["monthly"]]["rank"]}
-All-time:      {stats[rank_categories["all_time"]]["study_time"]:>{num_nums}}h   #{stats[rank_categories["all_time"]]["rank"]}
+Timeframe        {" " * (num_dec - 1)}Hours   Place\n
+Daily:         {stats[rank_categories["daily"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["daily"]]["rank"]}
+Weekly:        {stats[rank_categories["weekly"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["weekly"]]["rank"]}
+Monthly:       {stats[rank_categories["monthly"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["monthly"]]["rank"]}
+All-time:      {stats[rank_categories["all_time"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["all_time"]]["rank"]}
 Average/day ({utilities.get_month()}): {average_per_day} h\n
 Current study streak: {currentStreak}
 Longest study streak: {longestStreak}
