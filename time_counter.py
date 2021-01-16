@@ -191,7 +191,7 @@ class Study(commands.Cog):
 
         if last_record and last_record.category == "start channel":
             self.handle_in_session(user_id, reset=False)
-            rank_categories = utilities.get_rank_categories()
+            rank_categories = utilities.get_rank_categories(flatten=True)
             await self.update_streak(rank_categories, user_id)
 
     @tasks.loop(seconds=int(os.getenv("heartbeat_interval_sec")))
@@ -282,11 +282,13 @@ class Study(commands.Cog):
     @commands.command(aliases=['top'])
     @commands.before_invoke(update_stats)
     async def lb(self, ctx, timepoint=None, page: int = -1, user: discord.Member = None):
+        text = ""
+
         if not timepoint or timepoint == "-":
             timepoint = utilities.get_closest_timepoint(utilities.get_earliest_timepoint(string=True), prefix=True)
+            text = f"(From GMT+1 {timepoint.strip('daily_')})\n"
         else:
             timepoint = utilities.get_rank_categories()["monthly"]
-
         if not page or page == -1:
             # if the user has not specified someone else
             if not user:
@@ -302,8 +304,6 @@ class Study(commands.Cog):
             end = page * 10
             start = end - 10
             leaderboard = await self.get_info_from_leaderboard(timepoint, start, end)
-
-        text = f"(From GMT+1 {timepoint})\n"
 
         for person in leaderboard:
             name = (await self.get_discord_name(person["discord_user_id"]))[:40]
@@ -324,7 +324,7 @@ class Study(commands.Cog):
     @commands.before_invoke(update_stats)
     async def me(self, ctx, timepoint=None, user: discord.Member = None):
         await ctx.send(
-            f"**Reset time points are 5 pm, Monday (weekly), 1st (monthly) in {utilities.config['business']['timezone']}**")
+            f"**Reset time points are weekly: Monday 5pm, monthly: 1st 5pm in {utilities.config['business']['timezone']}**")
 
         if not timepoint or timepoint == "-":
             timepoint = utilities.get_closest_timepoint(utilities.get_earliest_timepoint(string=True), prefix=True)

@@ -14,8 +14,8 @@ bot = None
 guild = None
 bot_id = None
 time_to_stay = 3600 / (10 ** int(os.getenv("test_display_num_decimal")))
-db_tolerance = timedelta(seconds=.1)
-redis_tolerance = 3.6 * 2
+db_tolerance = timedelta(seconds=.2)
+redis_tolerance = 3.6 * 3
 
 redis_client = utilities.get_redis_client()
 engine = utilities.get_engine()
@@ -98,6 +98,7 @@ async def test_in_session(interface):
     multiplier = 2
     utilities.sleep(time_to_stay * multiplier)
     await guild.system_channel.send(os.getenv("prefix") + "me")
+    utilities.sleep(1)
     mid_stats = await utilities.get_user_stats(redis_client, bot_id)
     diff = utilities.get_stats_diff(prev_stats, mid_stats)
     excess = [hours * 3600 - time_to_stay * multiplier for hours in diff]

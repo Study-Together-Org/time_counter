@@ -328,7 +328,7 @@ async def get_redis_score(redis_client, sorted_set_name, user_id):
     return round_num(score)
 
 
-async def get_user_stats(redis_client, user_id, timepoint=get_earliest_timepoint(string=True, prefix=False)):
+async def get_user_stats(redis_client, user_id, timepoint=get_earliest_timepoint(string=True, prefix=True)):
     stats = dict()
     category_key_names = list(get_rank_categories().values())
 
