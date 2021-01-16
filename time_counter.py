@@ -303,7 +303,7 @@ class Study(commands.Cog):
             start = end - 10
             leaderboard = await self.get_info_from_leaderboard(timepoint, start, end)
 
-        text = ''
+        text = f"(From GMT+1 {timepoint})\n"
 
         for person in leaderboard:
             name = (await self.get_discord_name(person["discord_user_id"]))[:40]
@@ -347,7 +347,7 @@ class Study(commands.Cog):
         width = 5 + num_dec
         text = f"""
 ```glsl
-(Daily from GMT+1 {timepoint_to_use})
+(Daily is from GMT+1 {timepoint_to_use})
 Timeframe        {" " * (num_dec - 1)}Hours   Place
 
 Daily:         {stats[str(timepoint_to_use)]["study_time"]:{width}.{num_dec}f}h   #{stats[str(timepoint_to_use)]["rank"]}

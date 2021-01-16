@@ -37,8 +37,8 @@ def insert_sorted_set():
     filter_time_fn_li = [utilities.get_day_start, utilities.get_week_start, utilities.get_month_start,
                          utilities.get_earliest_start]
 
-    category_key_names = utilities.get_rank_categories()
-    for sorted_set_name, filter_time_fn in zip(category_key_names.values(), filter_time_fn_li):
+    category_key_names = utilities.get_rank_categories(flatten=True).values()
+    for sorted_set_name, filter_time_fn in zip(category_key_names, filter_time_fn_li):
         if sorted_set_name not in dictionary:
             print(f"{sorted_set_name} missing")
             continue

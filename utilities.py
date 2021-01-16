@@ -38,9 +38,10 @@ delta = timedelta(days=1)
 interval = delta / num_intervals
 
 
-def get_rank_categories():
+def get_rank_categories(flatten=False):
     rank_categories = {
-        "daily": ["daily_" + str(timepoint) for timepoint in get_timepoints()],
+        "daily": get_earliest_timepoint(prefix=True, string=True) if flatten else ["daily_" + str(timepoint) for timepoint in
+                                                                            get_timepoints()],
         "weekly": f"weekly_{get_week_start()}",
         "monthly": f"monthly_{get_month()}",
         "all_time": "all_time"

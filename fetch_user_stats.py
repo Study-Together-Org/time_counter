@@ -38,7 +38,7 @@ async def get_sheet(google_client):
 
 
 def pair_data(data, cols, *row_name):
-    print("DATA", len(data))
+    print("data", len(data))
     final = []
     c = 0
     temp = []
@@ -66,7 +66,7 @@ async def main():
     sheet = sheets[0]
     sheet2 = sheets[1]
 
-    names = utilities.get_rank_categories()
+    names = utilities.get_rank_categories(flatten=True)
     print(names)
     all_time = pair_data(sheet.range("J2:K" + str(sheet.row_count)), 2, names["all_time"])
     df_all_time = pd.DataFrame(all_time[1:], columns=all_time[0])
