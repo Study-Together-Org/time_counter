@@ -21,7 +21,7 @@ async def on_ready():
     monitored_categories = dict()
 
     for category in guild.categories:
-        if category.name[0] == "🔊" or "support-team-commands":
+        if category.name[0] == "🔊" or category.name == "support-team-commands":
             monitored_categories[category.name] = category.id
 
     key_name = ("test_" if os.getenv("mode") == "test" else "") + "monitored_categories"
