@@ -71,7 +71,7 @@
   business:
   {
     min_streak_time: 1
-    timezone: UTC
+    timezone: "GMT+0"
     update_time: 17
   }
   monitored_categories:

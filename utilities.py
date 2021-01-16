@@ -1,10 +1,10 @@
 import logging
 import os
 import sys
-import time
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, time
 
+import dateparser
 import hjson
 import pandas as pd
 import psutil
@@ -13,6 +13,7 @@ import shortuuid
 from dotenv import load_dotenv
 from faker import Faker
 from sqlalchemy import create_engine
+from dateutil.parser import parse
 
 load_dotenv("dev.env")
 
@@ -32,12 +33,16 @@ role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) f
                             role_settings.items()}
 role_names = list(role_settings.keys())
 
+num_intervals = 48
+delta = timedelta(days=1)
+interval = delta / num_intervals
+
 
 def get_rank_categories():
     rank_categories = {
-        "daily": f"{get_day_start()}_daily",
-        "weekly": f"{get_week_start()}_weekly",
-        "monthly": f"{get_month()}_monthly",
+        "daily": ["daily_" + str(timepoint) for timepoint in get_timepoints()],
+        "weekly": f"weekly_{get_week_start()}",
+        "monthly": f"monthly_{get_month()}",
         "all_time": "all_time"
     }
 
@@ -87,13 +92,13 @@ def get_num_days_this_month():
 
 
 def get_day_start():
-    dt = datetime.combine(datetime.utcnow().date(), datetime.min.time())
+    date = datetime.combine(datetime.utcnow().date(), datetime.min.time())
     offset = timedelta(hours=config["business"]["update_time"])
 
-    if datetime.utcnow() < dt + offset:
+    if datetime.utcnow() < date + offset:
         offset -= timedelta(days=1)
 
-    return dt + offset
+    return date + offset
 
 
 def get_tomorrow_start():
@@ -116,6 +121,39 @@ def get_earliest_start():
 
 def get_month():
     return datetime.utcnow().strftime("%B")
+
+
+def get_earliest_timepoint(starting_point=get_time() - delta, string=False, prefix=False):
+    offset = interval - (starting_point - datetime(1900, 1, 1)) % interval
+    if offset == interval:
+        offset -= interval
+
+    earliest_timepoint = starting_point + offset
+    return f"{'daily_' if prefix else ''}{earliest_timepoint}" if string else earliest_timepoint
+
+
+def get_closest_timepoint(timepoint):
+    cur_time = get_time()
+    # Handles today, yesterday, AM, a.m., A.M., etc.
+    full_time_point = dateparser.parse(timepoint, date_formats=["%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"])
+
+    if full_time_point > cur_time:
+        full_time_point -= timedelta(days=1)
+
+    timepoint_to_use = get_earliest_timepoint(full_time_point, string=True)
+
+    return timepoint_to_use
+
+
+def get_offset(starting_point=get_time() - delta):
+    offset = interval - (starting_point - datetime(1900, 1, 1)) % interval
+    return offset
+
+
+def get_timepoints():
+    earliest_timepoint = get_earliest_timepoint(prefix=False)
+    timepoints = [earliest_timepoint + i * interval for i in range(num_intervals)]
+    return timepoints
 
 
 def timedelta_to_hours(td):
@@ -252,7 +290,7 @@ def get_last_line():
 
 def get_last_time(line):
     last_line = " ".join(line.split()[:2])
-    return datetime.strptime(last_line, "%Y-%m-%d %H:%M:%S.%f")
+    return datetime.strptime(last_line, os.getenv("datetime_format"))
 
 
 def kill_last_process(line):
@@ -288,10 +326,11 @@ async def get_redis_score(redis_client, sorted_set_name, user_id):
     return round_num(score)
 
 
-async def get_user_stats(redis_client, user_id):
+async def get_user_stats(redis_client, user_id, timepoint=get_earliest_timepoint(string=True, prefix=False)):
     stats = dict()
-    category_key_names = get_rank_categories().values()
-    for sorted_set_name in list(category_key_names) + ["all_time"]:
+    category_key_names = list(get_rank_categories().values())
+
+    for sorted_set_name in [timepoint] + category_key_names[1:]:
         stats[sorted_set_name] = {
             "rank": await get_redis_rank(redis_client, sorted_set_name, user_id),
             "study_time": await get_redis_score(redis_client, sorted_set_name, user_id)
@@ -316,12 +355,14 @@ def sleep(seconds):
         sys.stdout.write("\r")
         sys.stdout.write("{:2d} seconds remaining.".format(remaining))
         sys.stdout.flush()
+        import time
         time.sleep(1)
 
 
-def increment_studytime(category_key_names, redis_client, user_id, incr=None, last_time=None):
-    if incr is None:
-        incr = timedelta_to_hours(get_time() - last_time)
+def increment_studytime(category_key_names, redis_client, user_id, in_session_incrs, std_incr=None, last_time=None):
+    if std_incr is None:
+        std_incr = timedelta_to_hours(get_time() - last_time)
 
-    for sorted_set_name in category_key_names:
+    for i, sorted_set_name in enumerate(category_key_names):
+        incr = in_session_incrs[i] if i < num_intervals else std_incr
         redis_client.zincrby(sorted_set_name, incr, user_id)
