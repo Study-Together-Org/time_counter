@@ -18,8 +18,8 @@ redis_client = utilities.get_redis_client()
 df = pd.read_csv("user_files/user_stats.csv", index_col="id")
 df = df[~df.index.duplicated(keep='first')]
 df.fillna(0, inplace=True)
-daily_name = utilities.get_rank_categories()["daily"]
-df[daily_name] = 0
+daily_name = utilities.get_rank_categories(flatten=True)["daily"]
+# df[daily_name] = 0
 df["current_streak"] = df["current_streak"].astype(int)
 df["longest_streak"] = df["longest_streak"].astype(int)
 dictionary = df.to_dict()
@@ -37,13 +37,13 @@ def insert_sorted_set():
     filter_time_fn_li = [utilities.get_day_start, utilities.get_week_start, utilities.get_month_start,
                          utilities.get_earliest_start]
 
-    category_key_names = utilities.get_rank_categories(flatten=True).values()
-    for sorted_set_name, filter_time_fn in zip(category_key_names, filter_time_fn_li):
-        if sorted_set_name not in dictionary:
-            print(f"{sorted_set_name} missing")
+    category_key_names = utilities.get_rank_categories(flatten=True)
+    for (category_key_name, sorted_set_name), filter_time_fn in zip(category_key_names.items(), filter_time_fn_li):
+        if category_key_name not in dictionary:
+            print(f"{category_key_name} missing")
             continue
 
-        to_insert = dictionary[sorted_set_name]
+        to_insert = dictionary[category_key_name]
         # TODO handle it smarter in fetch_all
         for k, v in to_insert.items():
             if type(v) != int and type(v) != float:

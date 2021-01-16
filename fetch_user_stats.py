@@ -68,16 +68,16 @@ async def main():
 
     names = utilities.get_rank_categories(flatten=True)
     print(names)
-    all_time = pair_data(sheet.range("J2:K" + str(sheet.row_count)), 2, names["all_time"])
+    all_time = pair_data(sheet.range("J2:K" + str(sheet.row_count)), 2, "all_time")
     df_all_time = pd.DataFrame(all_time[1:], columns=all_time[0])
 
-    monthly = pair_data(sheet.range("C2:D" + str(sheet.row_count)), 2, names["monthly"])
+    monthly = pair_data(sheet.range("C2:D" + str(sheet.row_count)), 2, "monthly")
     df_monthly = pd.DataFrame(monthly[1:], columns=monthly[0])
 
-    weekly = pair_data(sheet.range("Q2:R" + str(sheet.row_count)), 2, names["weekly"])
+    weekly = pair_data(sheet.range("Q2:R" + str(sheet.row_count)), 2, "weekly")
     df_weekly = pd.DataFrame(weekly[1:], columns=weekly[0])
 
-    daily = pair_data(sheet.range("X2:Y" + str(sheet.row_count)), 2, names["daily"])
+    daily = pair_data(sheet.range("X2:Y" + str(sheet.row_count)), 2, "daily")
     df_daily = pd.DataFrame(daily[1:], columns=daily[0])
 
     streaks = pair_data(sheet2.range("A3:C" + str(sheet2.row_count)), 3, "current_streak", "longest_streak")

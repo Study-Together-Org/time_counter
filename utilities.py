@@ -40,8 +40,9 @@ interval = delta / num_intervals
 
 def get_rank_categories(flatten=False):
     rank_categories = {
-        "daily": get_earliest_timepoint(prefix=True, string=True) if flatten else ["daily_" + str(timepoint) for timepoint in
-                                                                            get_timepoints()],
+        "daily": get_earliest_timepoint(prefix=True, string=True) if flatten else ["daily_" + str(timepoint) for
+                                                                                   timepoint in
+                                                                                   get_timepoints()],
         "weekly": f"weekly_{get_week_start()}",
         "monthly": f"monthly_{get_month()}",
         "all_time": "all_time"
@@ -133,7 +134,7 @@ def get_earliest_timepoint(starting_point=get_time() - delta, string=False, pref
     return f"{'daily_' if prefix else ''}{earliest_timepoint}" if string else earliest_timepoint
 
 
-def get_closest_timepoint(timepoint):
+def get_closest_timepoint(timepoint, prefix=False):
     cur_time = get_time()
     # Handles today, yesterday, AM, a.m., A.M., etc.
     full_time_point = dateparser.parse(timepoint, date_formats=["%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"])
@@ -143,7 +144,7 @@ def get_closest_timepoint(timepoint):
 
     timepoint_to_use = get_earliest_timepoint(full_time_point, string=True)
 
-    return timepoint_to_use
+    return f"{'daily_' if prefix else ''}{timepoint_to_use}"
 
 
 def get_offset(starting_point=get_time() - delta):

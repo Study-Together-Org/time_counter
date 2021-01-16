@@ -82,7 +82,7 @@ class Study(commands.Cog):
             in_session_incrs.append(incr)
             new_val = 0 if reset else incr + past_in_session_time
             self.redis_client.hset("in_session", user_id, new_val)
-            
+
         utilities.increment_studytime(category_key_names, self.redis_client, user_id,
                                       in_session_incrs=in_session_incrs, std_incr=std_incr)
 
@@ -227,14 +227,14 @@ class Study(commands.Cog):
         if before.self_mute != after.self_mute:
             self.sync_db(user_id, after.channel, "voice", not bool(after.self_mute))
 
-        rank_categories = utilities.get_rank_categories()
-
         if before.channel != after.channel:
             for category_offset, channel in enumerate([before.channel, after.channel]):
                 if channel:
                     self.sync_db(user_id, channel, "channel", category_offset)
             if before.channel:
                 self.handle_in_session(user_id, reset=True)
+
+            rank_categories = utilities.get_rank_categories(flatten=True)
             await self.update_streak(rank_categories, user_id)
 
     @commands.Cog.listener()
@@ -283,7 +283,7 @@ class Study(commands.Cog):
     @commands.before_invoke(update_stats)
     async def lb(self, ctx, timepoint=None, page: int = -1, user: discord.Member = None):
         if not timepoint or timepoint == "-":
-            timepoint = utilities.get_closest_timepoint(utilities.get_earliest_timepoint(string=True))
+            timepoint = utilities.get_closest_timepoint(utilities.get_earliest_timepoint(string=True), prefix=True)
         else:
             timepoint = utilities.get_rank_categories()["monthly"]
 
@@ -323,18 +323,20 @@ class Study(commands.Cog):
     @commands.command()
     @commands.before_invoke(update_stats)
     async def me(self, ctx, timepoint=None, user: discord.Member = None):
-        await ctx.send(f"**Reset time points are 5 pm, Monday (weekly), 1st (monthly) in {utilities.config['business']['timezone']}**")
+        await ctx.send(
+            f"**Reset time points are 5 pm, Monday (weekly), 1st (monthly) in {utilities.config['business']['timezone']}**")
 
         if not timepoint or timepoint == "-":
-            timepoint = utilities.get_closest_timepoint(utilities.get_earliest_timepoint(string=True))
+            timepoint = utilities.get_closest_timepoint(utilities.get_earliest_timepoint(string=True), prefix=True)
+        else:
+            timepoint = utilities.get_closest_timepoint(timepoint, prefix=True)
         if not user:
             user = ctx.author
 
         rank_categories = utilities.get_rank_categories()
         name = user.name + "#" + user.discriminator
         user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).first()
-        timepoint_to_use = utilities.get_closest_timepoint(timepoint)
-        stats = await utilities.get_user_stats(self.redis_client, user.id, timepoint=timepoint_to_use)
+        stats = await utilities.get_user_stats(self.redis_client, user.id, timepoint=timepoint)
         average_per_day = utilities.round_num(
             stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
 
@@ -347,10 +349,10 @@ class Study(commands.Cog):
         width = 5 + num_dec
         text = f"""
 ```glsl
-(Daily is from GMT+1 {timepoint_to_use})
+(Daily is from GMT+1 {timepoint.strip("daily_")})
 Timeframe        {" " * (num_dec - 1)}Hours   Place
 
-Daily:         {stats[str(timepoint_to_use)]["study_time"]:{width}.{num_dec}f}h   #{stats[str(timepoint_to_use)]["rank"]}
+Daily:         {stats[str(timepoint)]["study_time"]:{width}.{num_dec}f}h   #{stats[str(timepoint)]["rank"]}
 Weekly:        {stats[rank_categories["weekly"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["weekly"]]["rank"]}
 Monthly:       {stats[rank_categories["monthly"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["monthly"]]["rank"]}
 All-time:      {stats[rank_categories["all_time"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["all_time"]]["rank"]}
