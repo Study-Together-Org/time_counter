@@ -16,3 +16,6 @@ Set up MySQL database and Redis
 `insert_data.py`
 
 `time_counter.py`
+
+# License
+All rights reserved until I figure out which license is compatible with the used libraries.
