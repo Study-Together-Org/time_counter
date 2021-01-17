@@ -84,7 +84,7 @@ class Study(commands.Cog):
                 std_incr = incr
             in_session_incrs.append(incr)
             new_val = 0 if reset else incr + past_in_session_time
-            self.redis_client.hset("in_session", user_id, new_val)
+            self.redis_client.hset(in_session_name, user_id, new_val)
 
         utilities.increment_studytime(category_key_names, self.redis_client, user_id,
                                       in_session_incrs=in_session_incrs, std_incr=std_incr)
@@ -219,7 +219,7 @@ class Study(commands.Cog):
             tzinfo=ZoneInfo(utilities.config["business"]["timezone"]))
         display_timepoint = display_timepoint.astimezone(zone_obj).strftime(os.getenv("datetime_format").split(".")[0])
 
-        return timepoint, user_timezone, display_timepoint
+        return "daily_" + timepoint, user_timezone, display_timepoint
 
     @tasks.loop(seconds=int(os.getenv("heartbeat_interval_sec")))
     async def make_heartbeat(self):
@@ -381,7 +381,7 @@ class Study(commands.Cog):
     async def me(self, ctx, timepoint=None, user: discord.Member = None):
         """
         Displays statistics for your studytime (use '~help me' to see more)
-        By default the daily time is last 24 hours, but you can specify a start time (in the last 24 hours) vai
+        By default the daily time is last 24 hours, but you can specify a start time (in the last 24 hours)
         Currently, the available starting points are hours and half past hours so '~me 10:14' will become '~me 10:30'
 
         To specify a starting time, use any of the following formats "%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"
@@ -425,7 +425,7 @@ class Study(commands.Cog):
 {display_timezone} {display_timepoint})
 Timeframe        {" " * (num_dec - 1)}Hours   Place
 
-Daily:         {stats[str(timepoint)]["study_time"]:{width}.{num_dec}f}h   #{stats[str(timepoint)]["rank"]}
+Daily:         {stats[timepoint]["study_time"]:{width}.{num_dec}f}h   #{stats[str(timepoint)]["rank"]}
 Weekly:        {stats[rank_categories["weekly"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["weekly"]]["rank"]}
 Monthly:       {stats[rank_categories["monthly"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["monthly"]]["rank"]}
 All-time:      {stats[rank_categories["all_time"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["all_time"]]["rank"]}
