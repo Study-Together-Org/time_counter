@@ -277,6 +277,15 @@ class Study(commands.Cog):
     @commands.command(aliases=["rank"])
     @commands.before_invoke(update_stats)
     async def p(self, ctx, user: discord.Member = None):
+        """
+        Displays your role placement for this month (use '~help p' to see more)
+
+        examples: '~p'
+
+        To specify a user
+        examples: '~p @chooseyourfriend'
+        """
+
         # if the user has not specified someone else
         if not user:
             user = ctx.author
@@ -309,6 +318,23 @@ class Study(commands.Cog):
     @commands.command(aliases=['top'])
     @commands.before_invoke(update_stats)
     async def lb(self, ctx, timepoint=None, page: int = -1, user: discord.Member = None):
+        """
+        Displays statistics for people with similar studytime (use '~help lb' to see more)
+        By default the ranking is monthly, you can specify a start time (in the last 24 hours) vai
+        Currently, the available starting points are hours and half past hours so '~lb 10:14' will become '~lb 10:30'
+
+        To specify a starting time, use any of the following formats "%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"
+        examples: '~lb 9' or '~lb 9pm'
+
+        To specify a time and a user, use '-1' as a placeholder for page
+        examples: '~lb 9 -1 @chooseyourfriend'
+
+        To specify a user, also use '-' as a placeholder for time
+        examples: '~lb - @chooseyourfriend'
+
+        Note the weekly time resets on Monday GMT+0 5pm and the monthly time 1st day of the month 5pm
+        """
+
         text = ""
         if not user:
             user = ctx.author
@@ -350,6 +376,20 @@ class Study(commands.Cog):
     @commands.command()
     @commands.before_invoke(update_stats)
     async def me(self, ctx, timepoint=None, user: discord.Member = None):
+        """
+        Displays statistics for your studytime (use '~help me' to see more)
+        By default the daily time is last 24 hours, but you can specify a start time (in the last 24 hours) vai
+        Currently, the available starting points are hours and half past hours so '~me 10:14' will become '~me 10:30'
+
+        To specify a starting time, use any of the following formats "%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"
+        examples: '~me 9' or '~me 9pm'
+
+        To specify a user, use
+        examples: '~me 9 @chooseyourfriend' or '~me - @chooseyourfriend'
+        
+        Note the weekly time resets on Monday GMT+0 5pm and the monthly time 1st day of the month 5pm
+        """
+
         """
         # Regarding timezone
         # user input on command, input on DB: use user time to get UTC time & display user time
@@ -422,6 +462,6 @@ def setup(bot):
 
 
 if __name__ == '__main__':
-    client = commands.Bot(command_prefix=os.getenv("prefix"), intents=Intents.all())
+    client = commands.Bot(command_prefix=os.getenv("prefix"), intents=Intents.all(), description="Your study statistics and rankings")
     client.load_extension('time_counter')
     client.run(os.getenv('bot_token'))
