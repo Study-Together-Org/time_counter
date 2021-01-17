@@ -77,7 +77,7 @@ async def test_lb(interface):
 @test_collector()
 async def test_lb_with_page(interface):
     embed = Embed(title=f'{utilities.config["embed_titles"]["lb"]} ({utilities.get_month()})')
-    await interface.assert_reply_embed_equals(os.getenv("prefix") + "lb 4000000", embed, attributes_to_check=["title"])
+    await interface.assert_reply_embed_equals(os.getenv("prefix") + "lb - 4000000", embed, attributes_to_check=["title"])
 
 
 @test_collector()

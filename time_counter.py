@@ -320,17 +320,20 @@ class Study(commands.Cog):
     async def lb(self, ctx, timepoint=None, page: int = -1, user: discord.Member = None):
         """
         Displays statistics for people with similar studytime (use '~help lb' to see more)
-        By default the ranking is monthly, you can specify a start time (in the last 24 hours) vai
+        By default the ranking is monthly, you can specify a start time (in the last 24 hours).
         Currently, the available starting points are hours and half past hours so '~lb 10:14' will become '~lb 10:30'
 
         To specify a starting time, use any of the following formats "%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"
         examples: '~lb 9' or '~lb 9pm'
 
+        To specify a page, specify the page number where each page has 10 members; use '-' as a placeholder to get monthly ranking
+        examples: '~lb 9 2' or '~lb - 3'
+        
         To specify a time and a user, use '-1' as a placeholder for page
         examples: '~lb 9 -1 @chooseyourfriend'
 
-        To specify a user, also use '-' as a placeholder for time
-        examples: '~lb - @chooseyourfriend'
+        To specify a user, also use '-' as a placeholder to get monthly ranking
+        examples: '~lb - -1 @chooseyourfriend'
 
         Note the weekly time resets on Monday GMT+0 5pm and the monthly time 1st day of the month 5pm
         """
