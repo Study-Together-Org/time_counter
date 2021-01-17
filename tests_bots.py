@@ -9,7 +9,6 @@ from models import Action, User
 import utilities
 
 test_collector = TestCollector()
-bot_container = []
 bot = None
 guild = None
 bot_id = None
@@ -26,7 +25,7 @@ sqlalchemy_session = Session()
 @test_collector()
 async def test_init(interface):
     global bot, guild, bot_id
-    bot = bot_container[0]
+    bot = interface.client
     guild = bot.guilds[0]
     bot_id = bot.user.id
 
@@ -150,4 +149,4 @@ async def test_in_session(interface):
 if __name__ == "__main__":
     run_command_line_bot(target=int(os.getenv("test_bot_id")), token=os.getenv("test_bot_token"),
                          channel_id=int(os.getenv("test_channel_id")), tests="all",
-                         stats=True, timeout=5, collector=test_collector, bot_container=bot_container)
+                         stats=True, timeout=5, collector=test_collector)

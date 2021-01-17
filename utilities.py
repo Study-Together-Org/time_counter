@@ -13,6 +13,7 @@ import shortuuid
 from dotenv import load_dotenv
 from faker import Faker
 from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from dateutil.parser import parse
 
 load_dotenv("dev.env")
@@ -82,6 +83,13 @@ def get_engine(echo=False):
     return create_engine(
         f'mysql+pymysql://{os.getenv("sql_user")}:{os.getenv("sql_password")}@{os.getenv("sql_host")}/{os.getenv("sql_database")}',
         echo=echo)
+
+
+def get_timezone_engine():
+    db_var_name = ("test_" if os.getenv("mode") == "test" else "") + "timezone_db"
+    engine = create_engine(os.getenv(db_var_name))
+    session = sessionmaker(bind=engine)()
+    return session
 
 
 def get_time():

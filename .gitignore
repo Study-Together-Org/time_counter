@@ -1,6 +1,7 @@
 /1.0/
 creds.json
 user_files/*
+timezone
 
 # miscellaneous
 *.idea
