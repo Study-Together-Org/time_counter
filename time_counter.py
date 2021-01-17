@@ -1,13 +1,16 @@
 import asyncio
 import os
+
+import dateparser
 import discord
 from discord import Intents
 from datetime import datetime, timedelta, timezone
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
-
+from zoneinfo import ZoneInfo
 import utilities
+import timezone_bot
 from models import Action, User
 
 load_dotenv("dev.env")
@@ -37,7 +40,7 @@ class Study(commands.Cog):
         engine = utilities.get_engine()
         Session = sessionmaker(bind=engine)
         self.sqlalchemy_session = Session()
-
+        self.timezone_session = utilities.get_timezone_session()
         self.make_heartbeat.start()
 
     async def fetch(self):
@@ -194,6 +197,30 @@ class Study(commands.Cog):
             rank_categories = utilities.get_rank_categories(flatten=True)
             await self.update_streak(rank_categories, user_id)
 
+    async def get_user_timeinfo(self, ctx, user, timepoint):
+        user_timezone = await timezone_bot.query_zone(user)
+
+        if user_timezone == "Not set":
+            await ctx.send(
+                f"**You can set a time zone with `.tzlist` and then `.tzset`**")
+            user_timezone = utilities.config["business"]["timezone"]
+
+        zone_obj = ZoneInfo(user_timezone)
+
+        if timepoint and timepoint != "-":
+            user_timepoint = utilities.parse_time(timepoint, zone_obj=zone_obj)
+            user_timepoint = user_timepoint.replace(tzinfo=zone_obj)
+            utc_timepoint = user_timepoint.astimezone(ZoneInfo(utilities.config["business"]["timezone"]))
+            timepoint = utilities.get_closest_timepoint(utc_timepoint.strftime('%H:%M'), prefix=False)
+        else:
+            timepoint = utilities.get_closest_timepoint(utilities.get_earliest_timepoint(string=True), prefix=False)
+
+        display_timepoint = dateparser.parse(timepoint).replace(
+            tzinfo=ZoneInfo(utilities.config["business"]["timezone"]))
+        display_timepoint = display_timepoint.astimezone(zone_obj).strftime(os.getenv("datetime_format").split(".")[0])
+
+        return timepoint, user_timezone, display_timepoint
+
     @tasks.loop(seconds=int(os.getenv("heartbeat_interval_sec")))
     async def make_heartbeat(self):
         self.heartbeat_logger.info(f"{utilities.get_time()} alive")
@@ -283,17 +310,17 @@ class Study(commands.Cog):
     @commands.before_invoke(update_stats)
     async def lb(self, ctx, timepoint=None, page: int = -1, user: discord.Member = None):
         text = ""
+        if not user:
+            user = ctx.author
 
-        if not timepoint or timepoint == "-":
-            timepoint = utilities.get_closest_timepoint(utilities.get_earliest_timepoint(string=True), prefix=True)
-            text = f"(From GMT+1 {timepoint.strip('daily_')})\n"
+        if timepoint and timepoint != "-":
+            timepoint, display_timezone, display_timepoint = await self.get_user_timeinfo(ctx, user, timepoint)
+            text = f"(From {display_timezone} {display_timepoint})\n"
         else:
             timepoint = utilities.get_rank_categories()["monthly"]
+
         if not page or page == -1:
             # if the user has not specified someone else
-            if not user:
-                user = ctx.author
-
             user_id = user.id
             leaderboard = await self.get_neighbor_stats(timepoint, user_id)
         else:
@@ -323,16 +350,17 @@ class Study(commands.Cog):
     @commands.command()
     @commands.before_invoke(update_stats)
     async def me(self, ctx, timepoint=None, user: discord.Member = None):
-        await ctx.send(
-            f"**Reset time points are weekly: Monday 5pm, monthly: 1st 5pm in {utilities.config['business']['timezone']}**")
-
-        if not timepoint or timepoint == "-":
-            timepoint = utilities.get_closest_timepoint(utilities.get_earliest_timepoint(string=True), prefix=True)
-        else:
-            timepoint = utilities.get_closest_timepoint(timepoint, prefix=True)
+        """
+        # Regarding timezone
+        # user input on command, input on DB: use user time to get UTC time & display user time
+        # user input on command, not input on DB: use UTC time - prompt to input timezone
+        # no user input on command, input on DB: past 24 hours - display user time
+        # no user input on command, no input on DB: past 24 hours - prompt to input timezone
+        """
         if not user:
             user = ctx.author
 
+        timepoint, display_timezone, display_timepoint = await self.get_user_timeinfo(ctx, user, timepoint)
         rank_categories = utilities.get_rank_categories()
         name = user.name + "#" + user.discriminator
         user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).first()
@@ -347,9 +375,11 @@ class Study(commands.Cog):
 
         num_dec = int(os.getenv(("test_" if os.getenv("mode") == "test" else "") + "display_num_decimal"))
         width = 5 + num_dec
+
         text = f"""
 ```glsl
-(Daily is from GMT+1 {timepoint.strip("daily_")})
+(Daily starts tracking at
+{display_timezone} {display_timepoint})
 Timeframe        {" " * (num_dec - 1)}Hours   Place
 
 Daily:         {stats[str(timepoint)]["study_time"]:{width}.{num_dec}f}h   #{stats[str(timepoint)]["rank"]}

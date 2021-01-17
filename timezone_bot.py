@@ -12,7 +12,7 @@ import json
 import utilities
 
 load_dotenv("dev.env")
-session = utilities.get_timezone_engine()
+session = utilities.get_timezone_session()
 
 Base = declarative_base()
 
@@ -40,12 +40,6 @@ async def get_or_create(session, model, **kwargs):
 timezone_bot = commands.Bot(command_prefix=os.getenv('timezone_prefix'))
 
 
-@timezone_bot.event
-async def on_ready():
-    print('We have logged in as {0.user}'.format(timezone_bot))
-    await timezone_bot.change_presence(activity=discord.Game('%shelp' % os.getenv('timezone_prefix')))
-
-
 @timezone_bot.command(name='tzset')
 async def set_zone(ctx, *, timezone):
     if timezone in pytz.all_timezones:
@@ -69,12 +63,17 @@ async def query_zone(user: discord.Member):
         return 'Not set'
 
 
-async def get_zone_time(zone: str):
+async def get_zone_time(zone: str, full=False):
     if zone == 'Not set':
         return zone
 
     tz = pytz.timezone(zone)
-    return tz.normalize(datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(tz)).strftime('%H:%M')
+    res = tz.normalize(datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(tz))
+
+    if not full:
+        res = res.strftime('%H:%M')
+
+    return res
 
 
 @set_zone.error

@@ -2,6 +2,7 @@
 creds.json
 user_files/*
 timezone
+3_9_venv
 
 # miscellaneous
 *.idea

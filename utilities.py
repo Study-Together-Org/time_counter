@@ -3,7 +3,7 @@ import os
 import sys
 import math
 from datetime import datetime, timedelta, timezone, time
-
+from zoneinfo import ZoneInfo
 import dateparser
 import hjson
 import pandas as pd
@@ -85,7 +85,7 @@ def get_engine(echo=False):
         echo=echo)
 
 
-def get_timezone_engine():
+def get_timezone_session():
     db_var_name = ("test_" if os.getenv("mode") == "test" else "") + "timezone_db"
     engine = create_engine(os.getenv(db_var_name))
     session = sessionmaker(bind=engine)()
@@ -142,10 +142,19 @@ def get_earliest_timepoint(starting_point=get_time() - delta, string=False, pref
     return f"{'daily_' if prefix else ''}{earliest_timepoint}" if string else earliest_timepoint
 
 
+def parse_time(timepoint, zone_obj=ZoneInfo(config["business"]["timezone"])):
+    parsed = dateparser.parse(timepoint, date_formats=["%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"])
+
+    if parsed.replace(tzinfo=zone_obj) >= datetime.now(zone_obj):
+        parsed -= timedelta(days=1)
+
+    return parsed
+
+
 def get_closest_timepoint(timepoint, prefix=False):
     cur_time = get_time()
     # Handles today, yesterday, AM, a.m., A.M., etc.
-    full_time_point = dateparser.parse(timepoint, date_formats=["%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"])
+    full_time_point = parse_time(timepoint)
 
     if full_time_point > cur_time:
         full_time_point -= timedelta(days=1)
