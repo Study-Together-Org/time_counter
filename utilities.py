@@ -133,8 +133,12 @@ def get_month():
     return datetime.utcnow().strftime("%B")
 
 
-def get_earliest_timepoint(starting_point=get_time() - delta, string=False, prefix=False):
+def get_earliest_timepoint(starting_point=None, string=False, prefix=False):
+    if not starting_point:
+        starting_point = get_time() - delta
+
     offset = interval - (starting_point - datetime(1900, 1, 1)) % interval
+
     if offset == interval:
         offset -= interval
 
@@ -162,11 +166,6 @@ def get_closest_timepoint(timepoint, prefix=False):
     timepoint_to_use = get_earliest_timepoint(full_time_point, string=True)
 
     return f"{'daily_' if prefix else ''}{timepoint_to_use}"
-
-
-def get_offset(starting_point=get_time() - delta):
-    offset = interval - (starting_point - datetime(1900, 1, 1)) % interval
-    return offset
 
 
 def get_timepoints():
