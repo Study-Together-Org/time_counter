@@ -87,10 +87,13 @@ class Study(commands.Cog):
             base_time = max(last_record_time, in_session)
             incr = utilities.timedelta_to_hours(cur_time - base_time) - past_in_session_time
             if in_session_name[-8:] == str(utilities.config["business"]["update_time"]) + ":00:00":
+                std_incr = incr
                 prev_std_incr_name = "daily_" + str(in_session - timedelta(days=1))
-                prev_std_incr = self.redis_client.zscore(prev_std_incr_name, user_id)
-                self.redis_client.hset(prev_std_incr_name, user_id, 0)
-                std_incr = incr + prev_std_incr
+                prev_std_incr = self.redis_client.hget("in_session_" + prev_std_incr_name, user_id)
+                prev_std_incr = float(prev_std_incr) if prev_std_incr else 0
+                if prev_std_incr:
+                    std_incr += prev_std_incr
+                    self.redis_client.hset("in_session_" + prev_std_incr_name, user_id, 0)
             in_session_incrs.append(incr)
             new_val = 0 if reset else incr + past_in_session_time
             self.redis_client.hset(in_session_name, user_id, new_val)
