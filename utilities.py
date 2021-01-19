@@ -16,6 +16,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dateutil.parser import parse
 
+
 load_dotenv("dev.env")
 
 Faker.seed(int(os.getenv("seed")))
@@ -54,7 +55,7 @@ def get_rank_categories(flatten=False, string=True):
     rank_categories["weekly"] = f"weekly_{get_week_start()}"
     rank_categories["monthly"] = f"monthly_{get_month()}"
     rank_categories["all_time"] = "all_time"
-    
+
     return rank_categories
 
 
@@ -153,7 +154,9 @@ def get_earliest_timepoint(starting_point=None, string=False, prefix=False):
 
 
 def parse_time(timepoint, zone_obj=ZoneInfo(config["business"]["timezone"])):
-    parsed = dateparser.parse(timepoint, date_formats=["%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"])
+    parsed = dateparser.parse(timepoint or "", date_formats=["%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"])
+    if not parsed:
+        return
 
     if parsed.replace(tzinfo=zone_obj) >= datetime.now(zone_obj):
         parsed -= timedelta(days=1)
@@ -180,6 +183,34 @@ def get_timepoints():
 
 def timedelta_to_hours(td):
     return td.total_seconds() / 3600
+
+
+async def get_user_timeinfo(ctx, user, timepoint):
+    from timezone_bot import query_zone
+    user_timezone = await query_zone(user)
+
+    if user_timezone == "Not set":
+        await ctx.send(
+            f"**You can set a time zone with `.tzlist` and then `.tzset`**")
+        user_timezone = config["business"]["timezone"]
+
+    zone_obj = ZoneInfo(user_timezone)
+    # Here the placeholder is not limited to "-"
+    user_timepoint = parse_time(timepoint, zone_obj=zone_obj)
+
+    if user_timepoint:
+        user_timepoint = user_timepoint.replace(tzinfo=zone_obj)
+        std_zone_obj = ZoneInfo(config["business"]["timezone"])
+        utc_timepoint = user_timepoint.astimezone(std_zone_obj)
+        timepoint = get_closest_timepoint(utc_timepoint.replace(tzinfo=None), prefix=False)
+    else:
+        timepoint = get_closest_timepoint(get_earliest_timepoint(), prefix=False)
+
+    display_timepoint = dateparser.parse(timepoint).replace(
+        tzinfo=ZoneInfo(config["business"]["timezone"]))
+    display_timepoint = display_timepoint.astimezone(zone_obj).strftime(os.getenv("datetime_format").split(".")[0])
+
+    return "daily_" + timepoint, user_timezone, display_timepoint
 
 
 def round_num(num, ndigits=2):
@@ -367,6 +398,13 @@ def get_stats_diff(prev_stats, cur_stats):
     diff = [round_num(cur - prev) for prev, cur in zip(prev_studytime, cur_studytime)]
 
     return diff
+
+
+def check_stats_diff(prev_stats, mid_stats, time_to_stay, multiplier, redis_tolerance):
+    diff = get_stats_diff(prev_stats, mid_stats)
+    excess = [hours * 3600 - time_to_stay * multiplier for hours in diff]
+    is_all_increment_right = [0 <= hours <= redis_tolerance for hours in excess]
+    return all(is_all_increment_right)
 
 
 def sleep(seconds):

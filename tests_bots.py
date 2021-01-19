@@ -14,7 +14,11 @@ guild = None
 bot_id = None
 time_to_stay = 3600 / (10 ** int(os.getenv("test_display_num_decimal")))
 db_tolerance = timedelta(seconds=.2)
-redis_tolerance = 3.6 * 3
+redis_tolerance = 3.6 * 1.5
+discord_delay = 2
+past_time = "2pm"
+me_command = f"{os.getenv('prefix')}me {past_time}"
+timepoint = None
 
 redis_client = utilities.get_redis_client()
 engine = utilities.get_engine()
@@ -24,30 +28,29 @@ sqlalchemy_session = Session()
 
 @test_collector()
 async def test_init(interface):
-    global bot, guild, bot_id
+    global bot, guild, bot_id, timepoint
     bot = interface.client
     guild = bot.guilds[0]
     bot_id = bot.user.id
+    timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(guild.system_channel, bot.user, past_time)
 
 
 @test_collector()
 async def test_start_end_channel_incr(interface):
-    await guild.system_channel.send(os.getenv("prefix") + "me")
-    prev_stats = await utilities.get_user_stats(redis_client, bot_id)
+    await guild.system_channel.send(me_command)
+    prev_stats = await utilities.get_user_stats(redis_client, bot_id, timepoint=timepoint)
     voice_channel = [channel for channel in guild.voice_channels if "screen/cam" in channel.name][1]
     voice_client = await voice_channel.connect()
     start_channel_time = utilities.get_time()
     utilities.sleep(time_to_stay)
     await voice_client.disconnect()
     end_channel_time = utilities.get_time()
-    await guild.system_channel.send(os.getenv("prefix") + "me")
-    utilities.sleep(1)
-    cur_stats = await utilities.get_user_stats(redis_client, bot_id)
+    await guild.system_channel.send(me_command)
+    utilities.sleep(discord_delay)
+    cur_stats = await utilities.get_user_stats(redis_client, bot_id, timepoint=timepoint)
     # TODO test - use fields to check description?
     # reply = await guild.system_channel.history(limit=1).flatten()[0].embeds[0].description
-    diff = utilities.get_stats_diff(prev_stats, cur_stats)
-    is_all_increment_right = [hours * 3600 - time_to_stay <= redis_tolerance for hours in diff]
-    assert all(is_all_increment_right)
+    assert (utilities.check_stats_diff(prev_stats, cur_stats, time_to_stay, 1, redis_tolerance))
 
     # Check SQL
     records = sqlalchemy_session.query(Action) \
@@ -84,39 +87,38 @@ async def test_lb_with_page(interface):
 async def test_me(interface):
     embed = Embed(title=utilities.config["embed_titles"]["me"])
     await interface.assert_reply_embed_equals(os.getenv("prefix") + "me", embed, attributes_to_check=["title"])
+    utilities.sleep(discord_delay)
 
 
 @test_collector()
 async def test_in_session(interface):
     # TODO find out why this test can't be before test_p
-    await guild.system_channel.send(os.getenv("prefix") + "me")
-    prev_stats = await utilities.get_user_stats(redis_client, bot_id)
+    await guild.system_channel.send(me_command)
+    prev_stats = await utilities.get_user_stats(redis_client, bot_id, timepoint=timepoint)
     voice_channel = [channel for channel in guild.voice_channels if "screen/cam" in channel.name][1]
     voice_client = await voice_channel.connect()
 
     multiplier = 2
+    # multiplier = 175
     utilities.sleep(time_to_stay * multiplier)
-    await guild.system_channel.send(os.getenv("prefix") + "me")
-    utilities.sleep(1)
-    mid_stats = await utilities.get_user_stats(redis_client, bot_id)
-    diff = utilities.get_stats_diff(prev_stats, mid_stats)
-    excess = [hours * 3600 - time_to_stay * multiplier for hours in diff]
-    is_all_increment_right = [hours <= redis_tolerance for hours in excess]
-    assert all(is_all_increment_right)
+    await guild.system_channel.send(me_command)
+    utilities.sleep(discord_delay)
+    mid_stats = await utilities.get_user_stats(redis_client, bot_id, timepoint=timepoint)
+    assert (utilities.check_stats_diff(prev_stats, mid_stats, time_to_stay, multiplier, redis_tolerance))
 
     multiplier = 5
+    # multiplier = 2147
+
     utilities.sleep(time_to_stay * multiplier)
     await voice_client.disconnect()
-    await guild.system_channel.send(os.getenv("prefix") + "me")
-    utilities.sleep(1)
-    cur_stats = await utilities.get_user_stats(redis_client, bot_id)
-    diff = utilities.get_stats_diff(mid_stats, cur_stats)
-    excess = [hours * 3600 - time_to_stay * multiplier for hours in diff]
-    is_all_increment_right = [hours <= redis_tolerance for hours in excess]
-    assert all(is_all_increment_right)
+    await guild.system_channel.send(me_command)
+    utilities.sleep(discord_delay)
+    cur_stats = await utilities.get_user_stats(redis_client, bot_id, timepoint=timepoint)
+    assert (utilities.check_stats_diff(mid_stats, cur_stats, time_to_stay, multiplier, redis_tolerance))
 
 
 # TODO test - Write case for new member + each role...
+
 # start id_1
 # start id_1
 #

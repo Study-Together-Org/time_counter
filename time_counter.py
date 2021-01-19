@@ -10,7 +10,6 @@ from discord.ext import commands, tasks
 from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
 
-import timezone_bot
 import utilities
 from models import Action, User
 
@@ -78,9 +77,7 @@ class Study(commands.Cog):
         in_session_incrs = []
         std_incr = None
 
-        import time
-        start = time.time()
-
+        # TODO optimize: most values here will be the same and this is the bottleneck
         for in_session, in_session_name in zip(rank_categories_val[0], in_session_names):
             past_in_session_time = self.redis_client.hget(in_session_name, user_id)
             past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
@@ -98,13 +95,8 @@ class Study(commands.Cog):
             new_val = 0 if reset else incr + past_in_session_time
             self.redis_client.hset(in_session_name, user_id, new_val)
 
-        print(f'calc loop Time: {time.time() - start}')
-
         utilities.increment_studytime(category_key_names, self.redis_client, user_id,
                                       in_session_incrs=in_session_incrs, std_incr=std_incr)
-
-        start = time.time()
-        print(f'incr loop Time: {time.time() - start}')
 
     async def get_info_from_leaderboard(self, sorted_set_name, start=0, end=-1):
         if start < 0:
@@ -183,30 +175,34 @@ class Study(commands.Cog):
 
         return last_record.creation_time if last_record else cur_time
 
-    async def add_streak(self, user_id):
+    async def add_streak(self, user_id, reset=False):
         user = self.sqlalchemy_session.query(User).filter(User.id == user_id).first()
-        user.current_streak += 1
+        if reset:
+            user.current_streak = 0
+        else:
+            user.current_streak += 1
+
         if user.longest_streak < user.current_streak:
             user.longest_streak = user.current_streak
         self.sqlalchemy_session.commit()
 
-    async def update_streak(self, rank_categories, user_id):
-        if (await utilities.get_redis_score(self.redis_client, rank_categories["daily"], user_id)) > \
-            utilities.config["business"][
-                "min_streak_time"]:
+    async def update_streak(self, user_id):
+        today = utilities.get_day_start()
+        cur_studytime = await utilities.get_redis_score(self.redis_client, "daily_" + str(today), user_id)
+        if cur_studytime > utilities.config["business"]["min_streak_time"]:
             streak_name = "has_streak_today_" + str(user_id)
+
             if not self.redis_client.exists(streak_name):
-                await self.add_streak(user_id)
+                yesterday = "daily_" + str(today - timedelta(days=1))
+                reset = await utilities.get_redis_score(self.redis_client, yesterday, user_id) == 0
+                await self.add_streak(user_id, reset)
+
             self.redis_client.set(streak_name, 1)
             self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
 
-    async def update_stats(self, ctx):
-        import time
-        start = time.time()
+    async def update_stats(self, ctx, user):
 
-        user = ctx.author
-
-        if not (user.voice and user.voice.channel.category.id in monitored_categories):
+        if not user.bot and (not user.voice or user.voice.channel.category.id not in monitored_categories):
             return
 
         user_id = user.id
@@ -214,35 +210,7 @@ class Study(commands.Cog):
 
         if last_record and last_record.category == "start channel":
             self.handle_in_session(user_id, reset=False)
-            rank_categories = utilities.get_rank_categories(flatten=True)
-            await self.update_streak(rank_categories, user_id)
-
-        print(f'Update Stats Time: {time.time() - start}')
-
-    async def get_user_timeinfo(self, ctx, user, timepoint):
-        user_timezone = await timezone_bot.query_zone(user)
-
-        if user_timezone == "Not set":
-            await ctx.send(
-                f"**You can set a time zone with `.tzlist` and then `.tzset`**")
-            user_timezone = utilities.config["business"]["timezone"]
-
-        zone_obj = ZoneInfo(user_timezone)
-
-        if timepoint and timepoint != "-":
-            user_timepoint = utilities.parse_time(timepoint, zone_obj=zone_obj)
-            user_timepoint = user_timepoint.replace(tzinfo=zone_obj)
-            std_zone_obj = ZoneInfo(utilities.config["business"]["timezone"])
-            utc_timepoint = user_timepoint.astimezone(std_zone_obj)
-            timepoint = utilities.get_closest_timepoint(utc_timepoint.replace(tzinfo=None), prefix=False)
-        else:
-            timepoint = utilities.get_closest_timepoint(utilities.get_earliest_timepoint(), prefix=False)
-
-        display_timepoint = dateparser.parse(timepoint).replace(
-            tzinfo=ZoneInfo(utilities.config["business"]["timezone"]))
-        display_timepoint = display_timepoint.astimezone(zone_obj).strftime(os.getenv("datetime_format").split(".")[0])
-
-        return "daily_" + timepoint, user_timezone, display_timepoint
+            await self.update_streak(user_id)
 
     @tasks.loop(seconds=int(os.getenv("heartbeat_interval_sec")))
     async def make_heartbeat(self):
@@ -284,8 +252,7 @@ class Study(commands.Cog):
             if before.channel:
                 self.handle_in_session(user_id, reset=True)
 
-            rank_categories = utilities.get_rank_categories(flatten=True)
-            await self.update_streak(rank_categories, user_id)
+            await self.update_streak(user_id)
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -298,7 +265,6 @@ class Study(commands.Cog):
                 self.sqlalchemy_session.commit()
 
     @commands.command(aliases=["rank"])
-    @commands.before_invoke(update_stats)
     async def p(self, ctx, user: discord.Member = None):
         """
         Displays your role placement for this month (use '~help p' to see more)
@@ -310,11 +276,11 @@ class Study(commands.Cog):
         """
 
         # if the user has not specified someone else
-        import time
-        start = time.time()
 
         if not user:
             user = ctx.author
+
+        await self.update_stats(ctx, user)
 
         name = f"{user.name} #{user.discriminator}"
         user_id = user.id
@@ -339,12 +305,9 @@ class Study(commands.Cog):
             text += f"**Role promotion in:** ``{(str(time_to_next_role) + 'h')}``"
 
         emb = discord.Embed(title=utilities.config["embed_titles"]["p"], description=text)
-        print(f'p Time: {time.time() - start}')
         await ctx.send(embed=emb)
-        print(f'p & send Time: {time.time() - start}')
 
     @commands.command(aliases=['top'])
-    @commands.before_invoke(update_stats)
     async def lb(self, ctx, timepoint=None, page: int = -1, user: discord.Member = None):
         """
         Displays statistics for people with similar studytime (use '~help lb' to see more)
@@ -365,15 +328,14 @@ class Study(commands.Cog):
 
         Note the weekly time resets on Monday GMT+0 5pm and the monthly time 1st day of the month 5pm
         """
-        import time
-        start = time.time()
-
         text = ""
         if not user:
             user = ctx.author
 
+        await self.update_stats(ctx, user)
+
         if timepoint and timepoint != "-":
-            timepoint, display_timezone, display_timepoint = await self.get_user_timeinfo(ctx, user, timepoint)
+            timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(ctx, user, timepoint)
             text = f"(From {display_timezone} {display_timepoint})\n"
         else:
             timepoint = utilities.get_rank_categories()["monthly"]
@@ -399,9 +361,7 @@ class Study(commands.Cog):
                                  description=text)
 
         lb_embed.set_footer(text=f"Type ~lb 3 (some number) to see placements from 21 to 31")
-        print(f'lb Time: {time.time() - start}')
         await ctx.send(embed=lb_embed)
-        print(f'lb & send Time: {time.time() - start}')
 
     # @lb.error
     # async def lb_error(self, ctx, error):
@@ -409,7 +369,6 @@ class Study(commands.Cog):
     #         await ctx.send("You provided a wrong argument, more likely you provide an invalid number for the page.")
 
     @commands.command()
-    @commands.before_invoke(update_stats)
     async def me(self, ctx, timepoint=None, user: discord.Member = None):
         """
         Displays statistics for your studytime (use '~help me' to see more)
@@ -432,13 +391,11 @@ class Study(commands.Cog):
         # no user input on command, input on DB: past 24 hours - display user time
         # no user input on command, no input on DB: past 24 hours - prompt to input timezone
         """
-        import time
-        start = time.time()
-
         if not user:
             user = ctx.author
 
-        timepoint, display_timezone, display_timepoint = await self.get_user_timeinfo(ctx, user, timepoint)
+        await self.update_stats(ctx, user)
+        timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(ctx, user, timepoint)
         rank_categories = utilities.get_rank_categories()
         name = user.name + "#" + user.discriminator
         user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).first()
@@ -479,9 +436,7 @@ Longest study streak: {longestStreak}
             foot = "⭐ " + foot
 
         emb.set_footer(text=foot, icon_url=user.avatar_url)
-        print(f'me Time: {time.time() - start}')
         await ctx.send(embed=emb)
-        print(f'me & send Time: {time.time() - start}')
 
 
 def setup(bot):
