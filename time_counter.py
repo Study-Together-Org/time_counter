@@ -1,16 +1,17 @@
 import asyncio
 import os
+from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 import dateparser
 import discord
 from discord import Intents
-from datetime import datetime, timedelta, timezone
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
-from zoneinfo import ZoneInfo
-import utilities
+
 import timezone_bot
+import utilities
 from models import Action, User
 
 load_dotenv("dev.env")
@@ -69,25 +70,38 @@ class Study(commands.Cog):
         cur_time = utilities.get_time()
         last_record_time = last_record.creation_time if last_record else cur_time
 
-        rank_categories = utilities.get_rank_categories()
+        rank_categories = utilities.get_rank_categories(string=False)
         rank_categories_val = list(rank_categories.values())
-        category_key_names = rank_categories_val[0] + rank_categories_val[1:]
+        string_rank_categories = list(utilities.get_rank_categories(string=True).values())
+        in_session_names = ["in_session_" + str(in_session) for in_session in string_rank_categories[0]]
+        category_key_names = string_rank_categories[0] + string_rank_categories[1:]
         in_session_incrs = []
         std_incr = None
 
-        for in_session_name in rank_categories_val[0]:
-            in_session_name = "in_session_" + in_session_name
+        import time
+        start = time.time()
+
+        for in_session, in_session_name in zip(rank_categories_val[0], in_session_names):
             past_in_session_time = self.redis_client.hget(in_session_name, user_id)
             past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
-            incr = utilities.timedelta_to_hours(cur_time - last_record_time) - past_in_session_time
+            base_time = max(last_record_time, in_session)
+            incr = utilities.timedelta_to_hours(cur_time - base_time) - past_in_session_time
             if in_session_name[-8:] == str(utilities.config["business"]["update_time"]) + ":00:00":
-                std_incr = incr
+                prev_std_incr_name = "daily_" + str(in_session - timedelta(days=1))
+                prev_std_incr = self.redis_client.zscore(prev_std_incr_name, user_id)
+                self.redis_client.hset(prev_std_incr_name, user_id, 0)
+                std_incr = incr + prev_std_incr
             in_session_incrs.append(incr)
             new_val = 0 if reset else incr + past_in_session_time
             self.redis_client.hset(in_session_name, user_id, new_val)
 
+        print(f'calc loop Time: {time.time() - start}')
+
         utilities.increment_studytime(category_key_names, self.redis_client, user_id,
                                       in_session_incrs=in_session_incrs, std_incr=std_incr)
+
+        start = time.time()
+        print(f'incr loop Time: {time.time() - start}')
 
     async def get_info_from_leaderboard(self, sorted_set_name, start=0, end=-1):
         if start < 0:
@@ -184,6 +198,9 @@ class Study(commands.Cog):
             self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
 
     async def update_stats(self, ctx):
+        import time
+        start = time.time()
+
         user = ctx.author
 
         if not (user.voice and user.voice.channel.category.id in monitored_categories):
@@ -196,6 +213,8 @@ class Study(commands.Cog):
             self.handle_in_session(user_id, reset=False)
             rank_categories = utilities.get_rank_categories(flatten=True)
             await self.update_streak(rank_categories, user_id)
+
+        print(f'Update Stats Time: {time.time() - start}')
 
     async def get_user_timeinfo(self, ctx, user, timepoint):
         user_timezone = await timezone_bot.query_zone(user)
@@ -210,10 +229,11 @@ class Study(commands.Cog):
         if timepoint and timepoint != "-":
             user_timepoint = utilities.parse_time(timepoint, zone_obj=zone_obj)
             user_timepoint = user_timepoint.replace(tzinfo=zone_obj)
-            utc_timepoint = user_timepoint.astimezone(ZoneInfo(utilities.config["business"]["timezone"]))
-            timepoint = utilities.get_closest_timepoint(utc_timepoint.strftime('%H:%M'), prefix=False)
+            std_zone_obj = ZoneInfo(utilities.config["business"]["timezone"])
+            utc_timepoint = user_timepoint.astimezone(std_zone_obj)
+            timepoint = utilities.get_closest_timepoint(utc_timepoint.replace(tzinfo=None), prefix=False)
         else:
-            timepoint = utilities.get_closest_timepoint(utilities.get_earliest_timepoint(string=True), prefix=False)
+            timepoint = utilities.get_closest_timepoint(utilities.get_earliest_timepoint(), prefix=False)
 
         display_timepoint = dateparser.parse(timepoint).replace(
             tzinfo=ZoneInfo(utilities.config["business"]["timezone"]))
@@ -287,6 +307,9 @@ class Study(commands.Cog):
         """
 
         # if the user has not specified someone else
+        import time
+        start = time.time()
+
         if not user:
             user = ctx.author
 
@@ -313,7 +336,9 @@ class Study(commands.Cog):
             text += f"**Role promotion in:** ``{(str(time_to_next_role) + 'h')}``"
 
         emb = discord.Embed(title=utilities.config["embed_titles"]["p"], description=text)
+        print(f'p Time: {time.time() - start}')
         await ctx.send(embed=emb)
+        print(f'p & send Time: {time.time() - start}')
 
     @commands.command(aliases=['top'])
     @commands.before_invoke(update_stats)
@@ -337,6 +362,8 @@ class Study(commands.Cog):
 
         Note the weekly time resets on Monday GMT+0 5pm and the monthly time 1st day of the month 5pm
         """
+        import time
+        start = time.time()
 
         text = ""
         if not user:
@@ -369,7 +396,9 @@ class Study(commands.Cog):
                                  description=text)
 
         lb_embed.set_footer(text=f"Type ~lb 3 (some number) to see placements from 21 to 31")
+        print(f'lb Time: {time.time() - start}')
         await ctx.send(embed=lb_embed)
+        print(f'lb & send Time: {time.time() - start}')
 
     # @lb.error
     # async def lb_error(self, ctx, error):
@@ -400,6 +429,9 @@ class Study(commands.Cog):
         # no user input on command, input on DB: past 24 hours - display user time
         # no user input on command, no input on DB: past 24 hours - prompt to input timezone
         """
+        import time
+        start = time.time()
+
         if not user:
             user = ctx.author
 
@@ -444,7 +476,9 @@ Longest study streak: {longestStreak}
             foot = "⭐ " + foot
 
         emb.set_footer(text=foot, icon_url=user.avatar_url)
+        print(f'me Time: {time.time() - start}')
         await ctx.send(embed=emb)
+        print(f'me & send Time: {time.time() - start}')
 
 
 def setup(bot):
@@ -465,6 +499,7 @@ def setup(bot):
 
 
 if __name__ == '__main__':
-    client = commands.Bot(command_prefix=os.getenv("prefix"), intents=Intents.all(), description="Your study statistics and rankings")
+    client = commands.Bot(command_prefix=os.getenv("prefix"), intents=Intents.all(),
+                          description="Your study statistics and rankings")
     client.load_extension('time_counter')
     client.run(os.getenv('bot_token'))

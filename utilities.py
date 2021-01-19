@@ -34,21 +34,27 @@ role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) f
                             role_settings.items()}
 role_names = list(role_settings.keys())
 
-num_intervals = 48
+num_intervals = 24 * 60
 delta = timedelta(days=1)
 interval = delta / num_intervals
 
 
-def get_rank_categories(flatten=False):
-    rank_categories = {
-        "daily": get_earliest_timepoint(prefix=True, string=True) if flatten else ["daily_" + str(timepoint) for
-                                                                                   timepoint in
-                                                                                   get_timepoints()],
-        "weekly": f"weekly_{get_week_start()}",
-        "monthly": f"monthly_{get_month()}",
-        "all_time": "all_time"
-    }
+def get_rank_categories(flatten=False, string=True):
+    rank_categories = {}
 
+    if flatten:
+        timepoints = get_earliest_timepoint(prefix=True, string=string)
+    else:
+        timepoints = get_timepoints()
+        if string:
+            timepoints = ["daily_" + str(timepoint) for timepoint in timepoints]
+
+    rank_categories["daily"] = timepoints
+
+    rank_categories["weekly"] = f"weekly_{get_week_start()}"
+    rank_categories["monthly"] = f"monthly_{get_month()}"
+    rank_categories["all_time"] = "all_time"
+    
     return rank_categories
 
 
@@ -155,10 +161,8 @@ def parse_time(timepoint, zone_obj=ZoneInfo(config["business"]["timezone"])):
     return parsed
 
 
-def get_closest_timepoint(timepoint, prefix=False):
+def get_closest_timepoint(full_time_point, prefix=False):
     cur_time = get_time()
-    # Handles today, yesterday, AM, a.m., A.M., etc.
-    full_time_point = parse_time(timepoint)
 
     if full_time_point > cur_time:
         full_time_point -= timedelta(days=1)
