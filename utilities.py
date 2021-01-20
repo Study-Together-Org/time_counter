@@ -213,9 +213,10 @@ async def get_user_timeinfo(ctx, user, timepoint):
     return "daily_" + timepoint, user_timezone, display_timepoint
 
 
-def round_num(num, ndigits=2):
-    if os.getenv("mode") == "test":
-        ndigits = int(os.getenv("test_display_num_decimal"))
+def round_num(num, ndigits=None):
+    if not ndigits:
+        ndigits_var_name = ("test_" if os.getenv("mode") == "test" else "") + "display_num_decimal"
+        ndigits = int(os.getenv(ndigits_var_name))
 
     return round(num, ndigits=ndigits)
 
