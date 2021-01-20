@@ -438,6 +438,10 @@ Longest study streak: {longestStreak}
         emb.set_footer(text=foot, icon_url=user.avatar_url)
         await ctx.send(embed=emb)
 
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, exception):
+        await ctx.send(f"{exception}\nTry ~help?")
+
 
 def setup(bot):
     bot.add_cog(Study(bot))
