@@ -171,7 +171,7 @@ class Study(commands.Cog):
         record = Action(user_id=user_id, category=cur_category, detail=channel.id,
                         creation_time=cur_time)
         self.sqlalchemy_session.add(record)
-        self.sqlalchemy_session.commit()
+        utilities.commit_or_rollback(self.sqlalchemy_session)
 
         return last_record.creation_time if last_record else cur_time
 
@@ -184,17 +184,18 @@ class Study(commands.Cog):
 
         if user.longest_streak < user.current_streak:
             user.longest_streak = user.current_streak
-        self.sqlalchemy_session.commit()
+        utilities.commit_or_rollback(self.sqlalchemy_session)
 
     async def update_streak(self, user_id):
         today = utilities.get_day_start()
         cur_studytime = await utilities.get_redis_score(self.redis_client, "daily_" + str(today), user_id)
-        if cur_studytime > utilities.config["business"]["min_streak_time"]:
+        threshold = utilities.config["business"]["min_streak_time"]
+        if cur_studytime >= threshold:
             streak_name = "has_streak_today_" + str(user_id)
 
             if not self.redis_client.exists(streak_name):
                 yesterday = "daily_" + str(today - timedelta(days=1))
-                reset = await utilities.get_redis_score(self.redis_client, yesterday, user_id) == 0
+                reset = await utilities.get_redis_score(self.redis_client, yesterday, user_id) >= threshold
                 await self.add_streak(user_id, reset)
 
             self.redis_client.set(streak_name, 1)
@@ -262,7 +263,7 @@ class Study(commands.Cog):
             if not user_sql_obj:
                 to_insert = User(id=member.id)
                 self.sqlalchemy_session.add(to_insert)
-                self.sqlalchemy_session.commit()
+                utilities.commit_or_rollback(self.sqlalchemy_session)
 
     @commands.command(aliases=["rank"])
     async def p(self, ctx, user: discord.Member = None):

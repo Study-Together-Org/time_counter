@@ -16,7 +16,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dateutil.parser import parse
 
-
 load_dotenv("dev.env")
 
 Faker.seed(int(os.getenv("seed")))
@@ -77,16 +76,13 @@ def get_guildID():
 
 def recreate_db(Base):
     redis_client = get_redis_client()
-    redis_client.flushall()
     engine = get_engine()
+    redis_client.flushall()
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
 
 
 def get_engine(echo=False):
-    # if os.getenv("mode") != "test":
-    #     echo = False
-
     return create_engine(
         f'mysql+pymysql://{os.getenv("sql_user")}:{os.getenv("sql_password")}@{os.getenv("sql_host")}/{os.getenv("sql_database")}',
         echo=echo)
@@ -154,7 +150,14 @@ def get_earliest_timepoint(starting_point=None, string=False, prefix=False):
 
 
 def parse_time(timepoint, zone_obj=ZoneInfo(config["business"]["timezone"])):
-    parsed = dateparser.parse(timepoint or "", date_formats=["%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"])
+    if timepoint is None:
+        timepoint = ""
+
+    if len(timepoint) > 30:
+        return
+
+    parsed = dateparser.parse(timepoint, date_formats=["%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"])
+
     if not parsed:
         return
 
@@ -427,3 +430,12 @@ def increment_studytime(category_key_names, redis_client, user_id, in_session_in
     for i, sorted_set_name in enumerate(category_key_names):
         incr = in_session_incrs[i] if i < num_intervals else std_incr
         redis_client.zincrby(sorted_set_name, incr, user_id)
+
+
+def commit_or_rollback(session):
+    try:
+        session.commit()
+    except Exception as e:
+        print(e)
+        session.rollback()
+        raise
