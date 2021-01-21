@@ -61,3 +61,9 @@
 #         """
 #     num_rows = await self.bot.sql.query(count_row_query)
 #     return list(num_rows[0].values())[0]
+
+# for key, val in utilities.config["study_roles"].items():
+#     print(self.role_name_to_obj[key])
+#     utilities.config["study_roles"][key]["name"] = self.role_name_to_obj[key]["name"]
+#     utilities.config["study_roles"][key]["mention"] = self.role_name_to_obj[key]["mention"]
+# {role.name: {"name": role.name, "mention": role.mention} for role in self.guild.roles

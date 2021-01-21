@@ -46,8 +46,7 @@ class Study(commands.Cog):
     async def fetch(self):
         if not self.guild:
             self.guild = self.bot.get_guild(utilities.get_guildID())
-
-        self.role_name_to_obj = {role.name: {"name": role.name, "mention": role.mention} for role in self.guild.roles}
+        self.role_name_to_obj = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "study_roles"]
         self.supporter_role = self.guild.get_role(
             utilities.config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "supporter"])
 

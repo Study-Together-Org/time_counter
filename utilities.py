@@ -27,9 +27,9 @@ back_range = 61
 
 with open("config.hjson") as f:
     config = hjson.load(f)
-config["command_channels"] = set(config["command_channels"])
 
-role_settings = config["study_roles"]
+key_name = ("test_" if os.getenv("mode") == "test" else "") + "study_roles"
+role_settings = config[key_name]
 role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) for role_name, role_info in
                             role_settings.items()}
 role_names = list(role_settings.keys())
