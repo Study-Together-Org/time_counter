@@ -33,7 +33,7 @@ class User(Base):
 class Action(Base):
     __tablename__ = 'action'
     id = Column(INTEGER, primary_key=True)
-    user_id = Column(BIGINT, ForeignKey('user.id'), nullable=False, index=True)
+    user_id = Column(BIGINT, ForeignKey('user.id', onupdate="CASCADE"), nullable=False, index=True)
     category = Column(String(varchar_length), nullable=False)
     detail = Column(BIGINT)
     creation_time = Column(DATETIME, default=utilities.get_time)

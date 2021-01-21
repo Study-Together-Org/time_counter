@@ -44,7 +44,7 @@ A process listens to events from discord api when members join/leave study chann
 This process will insert logs into a SQL database (not any analytical data).
 
 ### ranking
-# 376 efficient way to maintain a linked list in sorted order
+# efficient way to maintain a linked list in sorted order
 Another bot will use in memory sorted sets (also called skip lists) in-memory cache Redis to maintain the users' scores and rankings.
 Each ranking has a different sorted sets.
 num of sorted set: 1 + 1 + 1 + 24 * 60

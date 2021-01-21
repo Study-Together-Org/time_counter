@@ -34,7 +34,7 @@ role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) f
                             role_settings.items()}
 role_names = list(role_settings.keys())
 
-num_intervals = 24 * 60
+num_intervals = 24 * 1
 delta = timedelta(days=1)
 interval = delta / num_intervals
 

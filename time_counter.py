@@ -42,6 +42,7 @@ class Study(commands.Cog):
         self.sqlalchemy_session = Session()
         self.timezone_session = utilities.get_timezone_session()
         self.make_heartbeat.start()
+        self.birthtime = utilities.get_time()
 
     async def fetch(self):
         if not self.guild:
@@ -193,8 +194,14 @@ class Study(commands.Cog):
             streak_name = "has_streak_today_" + str(user_id)
 
             if not self.redis_client.exists(streak_name):
-                yesterday = "daily_" + str(today - timedelta(days=1))
-                reset = await utilities.get_redis_score(self.redis_client, yesterday, user_id) >= threshold
+                yesterday = today - timedelta(days=1)
+                yesterday_str = "daily_" + str(yesterday)
+
+                if yesterday - self.birthtime < timedelta(days=2):
+                    reset = False
+                else:
+                    reset = await utilities.get_redis_score(self.redis_client, yesterday_str, user_id) >= threshold
+
                 await self.add_streak(user_id, reset)
 
             self.redis_client.set(streak_name, 1)

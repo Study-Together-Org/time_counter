@@ -1,3 +1,5 @@
+* redis memory management
+  
 * use git crypt
 * Test
     * (optional) Chaos engineering
