@@ -473,7 +473,10 @@ def setup(bot):
 
 
 if __name__ == '__main__':
-    client = commands.Bot(command_prefix=os.getenv("prefix"), intents=Intents.all(),
+    prefix = os.getenv("prefix")
+    prefix_2 = os.getenv("prefix_2")
+    prefixes = [prefix, prefix_2] if prefix_2 else prefix
+    client = commands.Bot(command_prefix=prefixes, intents=Intents.all(),
                           description="Your study statistics and rankings")
     client.load_extension('time_counter')
     client.run(os.getenv('bot_token'))
