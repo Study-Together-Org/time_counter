@@ -423,8 +423,7 @@ class Study(commands.Cog):
 
         text = f"""
 ```css
-Personal Study Statistics```
-
+{utilities.config["embed_titles"]["me"]}```
 ```glsl
 Timeframe   {" " * (num_dec - 1)}Hours   Place
 
@@ -441,7 +440,6 @@ Longest study streak: {longestStreak}
         """
 
         emb = discord.Embed(
-            title=utilities.config["embed_titles"]["me"],
             description=text)
         foot = name
 
