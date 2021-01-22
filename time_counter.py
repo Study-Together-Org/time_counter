@@ -197,7 +197,8 @@ class Study(commands.Cog):
                 yesterday = today - timedelta(days=1)
                 yesterday_str = "daily_" + str(yesterday)
 
-                if yesterday - self.birthtime < timedelta(days=2):
+                # TODO: fix - will have to be 2 or find some way to do this just if no logs
+                if yesterday - self.birthtime < timedelta(days=1):
                     reset = False
                 else:
                     reset = await utilities.get_redis_score(self.redis_client, yesterday_str, user_id) >= threshold
