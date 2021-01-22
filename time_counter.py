@@ -424,6 +424,7 @@ class Study(commands.Cog):
         text = f"""
 ```glsl
 Timeframe   {" " * (num_dec - 1)}Hours   Place
+
 Daily:    {stats[timepoint]["study_time"]:{width}.{num_dec}f}h   #{stats[str(timepoint)]["rank"]}
 Weekly:   {stats[rank_categories["weekly"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["weekly"]]["rank"]}
 Monthly:  {stats[rank_categories["monthly"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["monthly"]]["rank"]}
