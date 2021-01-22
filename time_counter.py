@@ -423,7 +423,7 @@ class Study(commands.Cog):
 
         text = f"""
 ```css
-Personal study statistics```
+Personal Study Statistics```
 
 ```glsl
 Timeframe   {" " * (num_dec - 1)}Hours   Place
