@@ -360,10 +360,13 @@ class Study(commands.Cog):
             start = end - 10
             leaderboard = await self.get_info_from_leaderboard(timepoint, start, end)
 
+        num_dec = int(os.getenv(("test_" if os.getenv("mode") == "test" else "") + "display_num_decimal"))
+        width = 5 + num_dec
+
         for person in leaderboard:
             name = (await self.get_discord_name(person["discord_user_id"]))[:40]
             style = "**" if user and person["discord_user_id"] == user.id else ""
-            text += f'`{(person["rank"] or 0):>5}.` {style}{person["study_time"]:<06} h {name}{style}\n'
+            text += f'`{(person["rank"] or 0):>5}.` {style}{person["study_time"]:{width}.{num_dec}f} h {name}{style}\n'
         lb_embed = discord.Embed(title=f'{utilities.config["embed_titles"]["lb"]} ({utilities.get_month()})',
                                  description=text)
 
@@ -420,15 +423,14 @@ class Study(commands.Cog):
 
         text = f"""
 ```glsl
-(Daily starts tracking at
-{display_timezone} {display_timepoint})
-Timeframe        {" " * (num_dec - 1)}Hours   Place
+Timeframe   {" " * (num_dec - 1)}Hours   Place
+Daily:    {stats[timepoint]["study_time"]:{width}.{num_dec}f}h   #{stats[str(timepoint)]["rank"]}
+Weekly:   {stats[rank_categories["weekly"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["weekly"]]["rank"]}
+Monthly:  {stats[rank_categories["monthly"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["monthly"]]["rank"]}
+All-time: {stats[rank_categories["all_time"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["all_time"]]["rank"]}
 
-Daily:         {stats[timepoint]["study_time"]:{width}.{num_dec}f}h   #{stats[str(timepoint)]["rank"]}
-Weekly:        {stats[rank_categories["weekly"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["weekly"]]["rank"]}
-Monthly:       {stats[rank_categories["monthly"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["monthly"]]["rank"]}
-All-time:      {stats[rank_categories["all_time"]]["study_time"]:{width}.{num_dec}f}h   #{stats[rank_categories["all_time"]]["rank"]}
-Average/day ({utilities.get_month()}): {average_per_day} h\n
+Average/day ({utilities.get_month()}): {average_per_day} h
+
 Current study streak: {currentStreak}
 Longest study streak: {longestStreak}
 ```
@@ -443,6 +445,8 @@ Longest study streak: {longestStreak}
             foot = "⭐ " + foot
 
         emb.set_footer(text=foot, icon_url=user.avatar_url)
+
+        await ctx.send(f"**Daily starts tracking at {display_timezone} {display_timepoint}**")
         await ctx.send(embed=emb)
 
     @commands.Cog.listener()
