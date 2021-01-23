@@ -30,7 +30,9 @@ action_size = user_size * 30 * 3 + 1
 
 
 def random_data(df):
+    # Note some fake data generation functions are iterative; yet it is not slow for now
     size = len(df)
+    # Since a user will join, leave, join, ... instead purely random choice of these two, we just need to randomize the start
     enter_exit_population = models.action_categories[:2] * (2 + size)
     random_offset = np.random.randint(0, 2)
     # num_enter_exit = int(size * enter_exit_proportion)
@@ -48,7 +50,7 @@ def generate_df():
     user_df['id'] = utilities.generate_discord_user_id(user_size)
 
     action_df = pd.DataFrame(columns=['user_id', 'category', 'detail', 'creation_time'])
-    # It deliberately makes the last member have 0 action
+    # It deliberately makes the last member have 0 action as a test case
     action_df["user_id"] = np.random.choice(user_df["id"], size=action_size)
 
     action_df = action_df.groupby("user_id").apply(random_data)
@@ -57,6 +59,7 @@ def generate_df():
     user_df.to_sql('user', con=engine, if_exists="append", index=False)
     action_df.to_sql('action', con=engine, if_exists="append", index=False)
     # TODO test - generate streak data
+    # I have not found an efficient way to calc streak data matching the above actions; We might have to generate independent fake data for streaks
     sqlalchemy_session.commit()
 
 
@@ -64,9 +67,11 @@ def generate_sorted_set():
     filter_time_fn_li = [utilities.get_day_start, utilities.get_week_start, utilities.get_month_start,
                          utilities.get_earliest_start]
     category_key_names = utilities.get_rank_categories().values()
+
     for sorted_set_name, filter_time_fn in zip(category_key_names, filter_time_fn_li):
         query = sqlalchemy_session.query(Action.user_id, Action.category, Action.creation_time) \
             .filter(Action.category.in_(['start channel', 'end channel']))
+
         if filter_time_fn:
             query = query.filter(Action.creation_time >= filter_time_fn())
 

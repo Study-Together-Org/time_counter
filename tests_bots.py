@@ -15,8 +15,8 @@ bot_id = None
 time_to_stay = 3600 / (10 ** int(os.getenv("test_display_num_decimal")))
 db_tolerance = timedelta(seconds=.2)
 redis_tolerance = 3.6 * 1.5
-discord_delay = 2
-past_time = "2pm"
+discord_delay = 2  # discord api, when slow, could take 5 seconds to send messages
+past_time = "2pm"  # specify some timepoint for commands that support it
 me_command = f"{os.getenv('prefix')}me {past_time}"
 timepoint = None
 
@@ -28,6 +28,8 @@ sqlalchemy_session = Session()
 
 @test_collector()
 async def test_init(interface):
+    # A workaround for shared info
+    # TODO test -  Get rid of this function by calling these for each test, so we can specify running just one test if we want
     global bot, guild, bot_id, timepoint
     bot = interface.client
     guild = bot.guilds[0]
@@ -92,7 +94,7 @@ async def test_me(interface):
 
 @test_collector()
 async def test_in_session(interface):
-    # TODO find out why this test can't be before test_p
+    # TODO test - find out why this test can't be before test_p
     await guild.system_channel.send(me_command)
     prev_stats = await utilities.get_user_stats(redis_client, bot_id, timepoint=timepoint)
     voice_channel = [channel for channel in guild.voice_channels if "screen/cam" in channel.name][1]
@@ -116,7 +118,7 @@ async def test_in_session(interface):
     cur_stats = await utilities.get_user_stats(redis_client, bot_id, timepoint=timepoint)
     assert (utilities.check_stats_diff(mid_stats, cur_stats, time_to_stay, multiplier, redis_tolerance))
 
-
+# TODO test - using large numbers as inputs to see if CPU hangs; it has caused discord.py not to log in the past
 # TODO test - Write case for new member + each role...
 
 # start id_1

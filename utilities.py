@@ -1,9 +1,10 @@
 import logging
+import math
 import os
 import sys
-import math
-from datetime import datetime, timedelta, timezone, time
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
+
 import dateparser
 import hjson
 import pandas as pd
@@ -14,7 +15,6 @@ from dotenv import load_dotenv
 from faker import Faker
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from dateutil.parser import parse
 
 load_dotenv("dev.env")
 
@@ -22,7 +22,7 @@ Faker.seed(int(os.getenv("seed")))
 fake = Faker()
 
 num_uuid = shortuuid.ShortUUID()
-num_uuid.set_alphabet("0123456789")
+num_uuid.set_alphabet("0123456789")  # uuid that only has numbers
 back_range = 61
 
 with open("config.hjson") as f:
@@ -40,6 +40,9 @@ interval = delta / num_intervals
 
 
 def get_rank_categories(flatten=False, string=True):
+    """
+    In general, it's easier to convert datetime objects to strings than the other way around; this function can give both
+    """
     rank_categories = {}
 
     if flatten:
@@ -50,7 +53,6 @@ def get_rank_categories(flatten=False, string=True):
             timepoints = ["daily_" + str(timepoint) for timepoint in timepoints]
 
     rank_categories["daily"] = timepoints
-
     rank_categories["weekly"] = f"weekly_{get_week_start()}"
     rank_categories["monthly"] = f"monthly_{get_month()}"
     rank_categories["all_time"] = "all_time"
@@ -156,6 +158,7 @@ def parse_time(timepoint, zone_obj=ZoneInfo(config["business"]["timezone"])):
     if len(timepoint) > 30:
         return
 
+    # This library is very flexible; some functions even support non-English languages
     parsed = dateparser.parse(timepoint, date_formats=["%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"])
 
     if not parsed:
@@ -202,10 +205,15 @@ async def get_user_timeinfo(ctx, user, timepoint):
     user_timepoint = parse_time(timepoint, zone_obj=zone_obj)
 
     if user_timepoint:
-        user_timepoint = user_timepoint.replace(tzinfo=zone_obj)
-        std_zone_obj = ZoneInfo(config["business"]["timezone"])
-        utc_timepoint = user_timepoint.astimezone(std_zone_obj)
-        timepoint = get_closest_timepoint(utc_timepoint.replace(tzinfo=None), prefix=False)
+        if user_timepoint > get_time() or user_timepoint < get_time() - timedelta(days=1):
+            await ctx.send(
+                f'**Using default: You must specify a past time within the last 24 hours (example: "30" will not work)**')
+            timepoint = get_closest_timepoint(get_earliest_timepoint(), prefix=False)
+        else:
+            user_timepoint = user_timepoint.replace(tzinfo=zone_obj)
+            std_zone_obj = ZoneInfo(config["business"]["timezone"])
+            utc_timepoint = user_timepoint.astimezone(std_zone_obj)
+            timepoint = get_closest_timepoint(utc_timepoint.replace(tzinfo=None), prefix=False)
     else:
         timepoint = get_closest_timepoint(get_earliest_timepoint(), prefix=False)
 
@@ -412,7 +420,7 @@ def check_stats_diff(prev_stats, mid_stats, time_to_stay, multiplier, redis_tole
 
 
 def sleep(seconds):
-    # TODO print decimals
+    # TODO (?) print decimals
     seconds = math.ceil(seconds)
 
     for remaining in range(seconds, 0, -1):

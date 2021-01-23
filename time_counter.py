@@ -1,9 +1,7 @@
 import asyncio
 import os
 from datetime import timedelta
-from zoneinfo import ZoneInfo
 
-import dateparser
 import discord
 from discord import Intents
 from discord.ext import commands, tasks
@@ -19,6 +17,9 @@ monitored_categories = utilities.config[monitored_key_name].values()
 
 
 def check_categories(channel):
+    """
+    Check to make sure to monitor only selected channels
+    """
     if channel and channel.category_id in monitored_categories:
         return True
 
@@ -45,13 +46,19 @@ class Study(commands.Cog):
         self.birthtime = utilities.get_time()
 
     async def fetch(self):
+        """
+        Get discord server objects and info from its api
+        Since it is only available after connecting, the bot will catch some initial commands but produce errors util this function is finished, which should be quick
+        """
         if not self.guild:
             self.guild = self.bot.get_guild(utilities.get_guildID())
         self.role_name_to_obj = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "study_roles"]
+        # supporter_role is a role for people who have denoted money
         self.supporter_role = self.guild.get_role(
             utilities.config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "supporter"])
 
     async def get_discord_name(self, user_id):
+        # In test mode, we might have fake data with fake ids. It is necessary to generate fake user info as well.
         if os.getenv("mode") == "test":
             for special_id in ["tester_human_discord_user_id", "tester_bot_token_discord_user_id"]:
                 if user_id == os.getenv(special_id):
@@ -64,6 +71,9 @@ class Study(commands.Cog):
         return f"{user.name} #{user.discriminator}" if user else "(account deleted)"
 
     def handle_in_session(self, user_id, reset):
+        """
+        When a user issues commands, we want to show up-to-date info even if there is no "voice_state_update"
+        """
         # after data recovery we should have a sensible start channel record
         last_record = self.get_last_record(user_id, ["start channel"])
         cur_time = utilities.get_time()
@@ -83,14 +93,19 @@ class Study(commands.Cog):
             past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
             base_time = max(last_record_time, in_session)
             incr = utilities.timedelta_to_hours(cur_time - base_time) - past_in_session_time
+
             if in_session_name[-8:] == str(utilities.config["business"]["update_time"]) + ":00:00":
+                # standard incr is what gets used for monthly and weekly. In other words, official incr is one of the sets of stats
                 std_incr = incr
                 prev_std_incr_name = "daily_" + str(in_session - timedelta(days=1))
                 prev_std_incr = self.redis_client.hget("in_session_" + prev_std_incr_name, user_id)
                 prev_std_incr = float(prev_std_incr) if prev_std_incr else 0
+
+                # For actions produced after the reset time, we need to account for the time in the previous time interval as well
                 if prev_std_incr:
                     std_incr += prev_std_incr
                     self.redis_client.hset("in_session_" + prev_std_incr_name, user_id, 0)
+
             in_session_incrs.append(incr)
             new_val = 0 if reset else incr + past_in_session_time
             self.redis_client.hset(in_session_name, user_id, new_val)
@@ -135,7 +150,8 @@ class Study(commands.Cog):
         cur_category = categories[category_offset]
         last_record = self.get_last_record(user_id, categories)
 
-        # data recovery
+        # Heuristic data recovery if users have voice_state_update when the bot is down
+        # See all possible scenarios in test_bot.py
         if last_record:
             # For case:
             # last: start id_1
@@ -190,14 +206,19 @@ class Study(commands.Cog):
         today = utilities.get_day_start()
         cur_studytime = await utilities.get_redis_score(self.redis_client, "daily_" + str(today), user_id)
         threshold = utilities.config["business"]["min_streak_time"]
+
+        # A user must study for some minimal time to be considered having studied in a time interval
         if cur_studytime >= threshold:
+            # We use a auto-expiring key to implement a fluid streak system - as long as user has studied in the past 24 hours, today the user will have streak
+            # Note this grants users a grace period of 1 day
             streak_name = "has_streak_today_" + str(user_id)
 
             if not self.redis_client.exists(streak_name):
                 yesterday = today - timedelta(days=1)
                 yesterday_str = "daily_" + str(yesterday)
 
-                # TODO: fix - will have to be 2 or find some way to do this just if no logs
+                # TODO: fix - will have to be 2 or find some way to do this if Redis has no logs
+                # Make sure there has been a day since the start of the bot in case there is no logs in Redis (database gets reset)
                 if yesterday - self.birthtime < timedelta(days=1):
                     reset = False
                 else:
@@ -209,7 +230,7 @@ class Study(commands.Cog):
             self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
 
     async def update_stats(self, ctx, user):
-
+        # Only update stats if a user is in a monitored channel when issuing the command
         if not user.bot and (not user.voice or user.voice.channel.category.id not in monitored_categories):
             return
 
@@ -226,6 +247,9 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        """
+        This is just a workaround for the distest library to work (using bots to automatically test other bots; see test_bots.py)
+        """
         if os.getenv("mode") == "test" and message.author.bot:
             ctx = await self.bot.get_context(message)
             await self.bot.invoke(ctx)
@@ -254,12 +278,16 @@ class Study(commands.Cog):
             self.sync_db(user_id, after.channel, "voice", not bool(after.self_mute))
 
         if before.channel != after.channel:
+            # If a user leaves a channel by joining another one; the database needs 2 logs
             for category_offset, channel in enumerate([before.channel, after.channel]):
                 if channel:
                     self.sync_db(user_id, channel, "channel", category_offset)
+
             if before.channel:
                 self.handle_in_session(user_id, reset=True)
 
+            # Only both with streak update on channel change
+            # Assumption - a user won't be in a monitored channel with no voice_state_update for more than a day + the grace period (see update_streak)
             await self.update_streak(user_id)
 
     @commands.Cog.listener()
@@ -320,7 +348,7 @@ class Study(commands.Cog):
         """
         Displays statistics for people with similar studytime (use '~help lb' to see more)
         By default the ranking is monthly, you can specify a start time (in the last 24 hours).
-        Currently, the available starting points are hours and half past hours so '~lb 10:14' will become '~lb 10:30'
+        Currently, the available starting points are hours. If we include half past hours, '~lb 10:14' will become '~lb 10:30'
 
         To specify a starting time, use any of the following formats "%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"
         examples: '~lb 9' or '~lb 9pm'
@@ -337,6 +365,8 @@ class Study(commands.Cog):
         Note the weekly time resets on Monday GMT+0 5pm and the monthly time 1st day of the month 5pm
         """
         text = ""
+
+        # if the user has not specified someone else
         if not user:
             user = ctx.author
 
@@ -345,16 +375,17 @@ class Study(commands.Cog):
         if timepoint and timepoint != "-":
             timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(ctx, user, timepoint)
             text = f"(From {display_timezone} {display_timepoint})\n"
+        # No timepoint or using placeholder
         else:
             timepoint = utilities.get_rank_categories()["monthly"]
 
+        # No timepoint or using placeholder
         if not page or page == -1:
-            # if the user has not specified someone else
             user_id = user.id
             leaderboard = await self.get_neighbor_stats(timepoint, user_id)
         else:
             if page < 1:
-                await ctx.send("You can't look page 0 or a minus number.")
+                await ctx.send("Invalid page number.")
                 return
 
             end = page * 10
@@ -368,6 +399,7 @@ class Study(commands.Cog):
             name = (await self.get_discord_name(person["discord_user_id"]))[:40]
             style = "**" if user and person["discord_user_id"] == user.id else ""
             text += f'`{(person["rank"] or 0):>5}.` {style}{person["study_time"]:{width}.{num_dec}f} h {name}{style}\n'
+
         lb_embed = discord.Embed(title=f'{utilities.config["embed_titles"]["lb"]} ({utilities.get_month()})',
                                  description=text)
 
@@ -384,7 +416,7 @@ class Study(commands.Cog):
         """
         Displays statistics for your studytime (use '~help me' to see more)
         By default the daily time is last 24 hours, but you can specify a start time (in the last 24 hours)
-        Currently, the available starting points are hours and half past hours so '~me 10:14' will become '~me 10:30'
+        Currently, the available starting points are hours. If we include half past hours, '~me 10:14' will become '~me 10:30'
 
         To specify a starting time, use any of the following formats "%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"
         examples: '~me 9' or '~me 9pm'
@@ -444,6 +476,7 @@ Longest study streak: {longestStreak}
             description=text)
         foot = name
 
+        # Add Fancy decoration for supporter_role
         if self.supporter_role in user.roles:
             foot = "⭐ " + foot
 
@@ -462,6 +495,9 @@ def setup(bot):
     bot.add_cog(Study(bot))
 
     async def botSpam(ctx):
+        """
+        Only respond in certain channels to avoid spamming
+        """
         if ctx.channel.id in utilities.config["command_channels"]:
             return True
         else:
@@ -476,9 +512,11 @@ def setup(bot):
 
 
 if __name__ == '__main__':
+    # Potentially accept multiple prefixes
     prefix = os.getenv("prefix")
     prefix_2 = os.getenv("prefix_2")
     prefixes = [prefix, prefix_2] if prefix_2 else prefix
+
     client = commands.Bot(command_prefix=prefixes, intents=Intents.all(),
                           description="Your study statistics and rankings")
     client.load_extension('time_counter')

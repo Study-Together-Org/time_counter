@@ -1,10 +1,9 @@
-import json
+import locale
 
 import pandas as pd
-import locale
+
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 from sqlalchemy.orm import sessionmaker
-import utilities
 from models import *
 
 load_dotenv("dev.env")
@@ -19,7 +18,10 @@ df = pd.read_csv("user_files/user_stats.csv", index_col="id")
 df = df[~df.index.duplicated(keep='first')]
 df.fillna(0, inplace=True)
 daily_name = utilities.get_rank_categories(flatten=True)["daily"]
+# Optionally we could reset certain stats
 # df[daily_name] = 0
+
+# Dataframe might have weird default data types
 df["current_streak"] = df["current_streak"].astype(int)
 df["longest_streak"] = df["longest_streak"].astype(int)
 dictionary = df.to_dict()
@@ -48,6 +50,7 @@ def insert_sorted_set():
         for k, v in to_insert.items():
             if type(v) != int and type(v) != float:
                 to_insert[k] = locale.atoi(v)
+            # Convert minutes to hours
             to_insert[k] /= 60
         redis_client.zadd(sorted_set_name, to_insert)
 

@@ -1,3 +1,5 @@
+# Original author: https://github.com/JakeStanger/Discord-Friend-Timezones/tree/6eb9537bc9c9e434549c001c1859635c82333b66
+
 import os
 import discord
 import pytz
@@ -37,7 +39,15 @@ async def get_or_create(session, model, **kwargs):
         return instance
 
 
-timezone_bot = commands.Bot(command_prefix=os.getenv('timezone_prefix'))
+description = f"""
+A bot that manages your timezone
+
+Typical usage:
+Know the 2-letter code for your country (If you don't know it, visit https://gist.github.com/pamelafox/986163)
+Set it with `.tzset <your code>`
+Check it with `.tzget and .time`
+"""
+timezone_bot = commands.Bot(command_prefix=os.getenv('timezone_prefix'), description=description)
 
 
 @timezone_bot.command(name='tzset')
@@ -114,7 +124,8 @@ async def get_tzlist(ctx, country=None):
         await ctx.send(
             f'Available timezones for {pytz.country_names[country.upper()]} are:\n{", ".join(pytz.country_timezones[country.upper()])}')
     else:
-        await ctx.send('Please specify a two letter coutry code')
+        await ctx.send(
+            'Please specify a two letter country code. [List available here](https://gist.github.com/pamelafox/986163)')
 
 
 if __name__ == '__main__':

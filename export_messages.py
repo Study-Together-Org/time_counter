@@ -1,14 +1,8 @@
-import discord
-from discord.ext import commands
-import asyncio
-
 import os
 
 from discord import Intents
 from discord.ext import commands
 from dotenv import load_dotenv
-
-import dbmanagement as dbm
 
 load_dotenv("dev.env")
 

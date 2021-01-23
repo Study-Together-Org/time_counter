@@ -1,3 +1,4 @@
+# Author: https://github.com/Gugu7264
 import os
 
 import gspread_asyncio as gaio

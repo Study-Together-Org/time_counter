@@ -18,12 +18,13 @@ Base = declarative_base()
 action_categories = [
     "start channel", "end channel", "start stream", "end stream", "start video", "end video", "start voice",
     "end voice",
+    # Currently timer logs are not implemented
     # "start timer", "end timer"
 ]
 
 
 class User(Base):
-    # How to make it just use the class name instead of hard coding the table name?
+    # Question - How to make it just use the class name instead of hard coding the table name?
     __tablename__ = 'user'
     id = Column(BIGINT, primary_key=True)
     longest_streak = Column(INTEGER, server_default="0")
@@ -35,7 +36,7 @@ class Action(Base):
     id = Column(INTEGER, primary_key=True)
     user_id = Column(BIGINT, ForeignKey('user.id', onupdate="CASCADE"), nullable=False, index=True)
     category = Column(String(varchar_length), nullable=False)
-    detail = Column(BIGINT)
+    detail = Column(BIGINT)  # Currently, detail is the id of the channel where actions happen
     creation_time = Column(DATETIME, default=utilities.get_time)
 
     user = relationship("User", back_populates="action")
