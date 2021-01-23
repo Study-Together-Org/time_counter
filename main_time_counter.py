@@ -12,6 +12,7 @@ logger = utilities.get_logger("main", "heartbeat.log")
 
 proc = None
 line = utilities.get_last_line()
+# TODO: fix - Dangerous - need to make sure it's our process
 utilities.kill_last_process(line)
 
 while True:
@@ -23,6 +24,7 @@ while True:
         max_diff = timedelta(seconds=max_diff_sec)
 
         if (not last_time) or utilities.get_time() - last_time > max_diff:
+            # Process has died. Restart it
             proc = subprocess.Popen(['python3', './time_counter.py'])
             logger.info(f"{utilities.get_time()} birth with pid {proc.pid}")
 
