@@ -11,13 +11,13 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 import utilities
 
-
 load_dotenv("dev.env")
 
 client = commands.Bot(command_prefix=os.getenv("prefix"), intents=Intents.all())
 
 with open("config.hjson") as f:
     config = hjson.load(f)
+
 
 def get_creds():
     return ServiceAccountCredentials.from_json_keyfile_name(
@@ -35,7 +35,7 @@ async def get_sheet(google_client):
         "https://docs.google.com/spreadsheets/d/1xvmK6yawHbhtfvi_0Dvp9afWv8mZ5Tn7o_szE1a76ZY/edit")).sheet1
     sheet2 = (await session.open_by_url(
         "https://docs.google.com/spreadsheets/d/1hsw5l0IXoPK9k9CWXZrW556yAUsUdjtSs9joub4Oa_g/edit")).sheet1
-    return (sheet1, sheet2)
+    return sheet1, sheet2
 
 
 def pair_data(data, cols, *row_name):
@@ -102,6 +102,7 @@ async def on_ready():
     res.to_csv("./user_files/user_stats.csv", index=False, float_format='{:f}'.format, encoding='utf-8')
 
     await client.logout()
+
 
 client.run(os.getenv('bot_token'))
 print("Done")

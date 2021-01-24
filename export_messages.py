@@ -1,3 +1,5 @@
+# Author: https://github.com/Gugu7264
+
 import os
 
 from discord import Intents

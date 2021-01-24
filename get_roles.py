@@ -1,12 +1,12 @@
+import copy
 import os
 
 import hjson
 from discord import Intents
 from discord.ext import commands
 from dotenv import load_dotenv
-import copy
+
 import utilities
-from collections import defaultdict
 
 load_dotenv("dev.env")
 
