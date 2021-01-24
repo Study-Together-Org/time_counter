@@ -205,14 +205,16 @@ async def get_user_timeinfo(ctx, user, timepoint):
     user_timepoint = parse_time(timepoint, zone_obj=zone_obj)
 
     if user_timepoint:
-        if user_timepoint > get_time() or user_timepoint < get_time() - timedelta(days=1):
+        user_timepoint = user_timepoint.replace(tzinfo=zone_obj)
+        std_zone_obj = ZoneInfo(config["business"]["timezone"])
+        utc_timepoint = user_timepoint.astimezone(std_zone_obj)
+        cur_timepoint = get_time().replace(tzinfo=std_zone_obj)
+
+        if utc_timepoint > cur_timepoint or utc_timepoint < (cur_timepoint - timedelta(days=1)):
             await ctx.send(
                 f'**Using default: You must specify a past time within the last 24 hours (example: "30" will not work)**')
             timepoint = get_closest_timepoint(get_earliest_timepoint(), prefix=False)
         else:
-            user_timepoint = user_timepoint.replace(tzinfo=zone_obj)
-            std_zone_obj = ZoneInfo(config["business"]["timezone"])
-            utc_timepoint = user_timepoint.astimezone(std_zone_obj)
             timepoint = get_closest_timepoint(utc_timepoint.replace(tzinfo=None), prefix=False)
     else:
         timepoint = get_closest_timepoint(get_earliest_timepoint(), prefix=False)
