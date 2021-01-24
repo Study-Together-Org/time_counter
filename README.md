@@ -14,7 +14,7 @@ Set up MySQL database and Redis
 
 # Quick Start
 `insert_data.py`
-
+`timezone_bot.py`
 `time_counter.py`
 
 # License
@@ -41,7 +41,7 @@ Discord chatroom
 ## Mechanism
 ### basic
 A process listens to events from discord api when members join/leave study channels or request stats.
-This process will insert logs into an SQL database (not any analytical data).
+This process will insert logs into a SQL database (not any analytical data).
 
 ### ranking
 # efficient way to maintain a linked list in sorted order
