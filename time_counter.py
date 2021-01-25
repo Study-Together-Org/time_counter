@@ -508,6 +508,8 @@ def setup(bot):
             await m.delete()
             return False
 
+    # TODO a staff command to change ppl's time
+
     bot.add_check(botSpam)
 
 

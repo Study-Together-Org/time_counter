@@ -125,7 +125,7 @@ async def get_tzlist(ctx, country=None):
             f'Available timezones for {pytz.country_names[country.upper()]} are:\n{", ".join(pytz.country_timezones[country.upper()])}')
     else:
         await ctx.send(
-            'Please specify a two letter country code. [List available here](https://gist.github.com/pamelafox/986163)')
+            'Please specify this command with a two letter country code. [List available here](https://gist.github.com/pamelafox/986163)')
 
 
 if __name__ == '__main__':

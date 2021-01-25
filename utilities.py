@@ -197,7 +197,7 @@ async def get_user_timeinfo(ctx, user, timepoint):
 
     if user_timezone == "Not set":
         await ctx.send(
-            f"**You can set a time zone with `.tzlist` and then `.tzset`**")
+            f"**You can set a time zone by following `.help`**")
         user_timezone = config["business"]["timezone"]
 
     zone_obj = ZoneInfo(user_timezone)
@@ -208,14 +208,7 @@ async def get_user_timeinfo(ctx, user, timepoint):
         user_timepoint = user_timepoint.replace(tzinfo=zone_obj)
         std_zone_obj = ZoneInfo(config["business"]["timezone"])
         utc_timepoint = user_timepoint.astimezone(std_zone_obj)
-        cur_timepoint = get_time().replace(tzinfo=std_zone_obj)
-
-        if utc_timepoint > cur_timepoint or utc_timepoint < (cur_timepoint - timedelta(days=1)):
-            await ctx.send(
-                f'**Using default: You must specify a past time within the last 24 hours (example: "30" will not work)**')
-            timepoint = get_closest_timepoint(get_earliest_timepoint(), prefix=False)
-        else:
-            timepoint = get_closest_timepoint(utc_timepoint.replace(tzinfo=None), prefix=False)
+        timepoint = get_closest_timepoint(utc_timepoint.replace(tzinfo=None), prefix=False)
     else:
         timepoint = get_closest_timepoint(get_earliest_timepoint(), prefix=False)
 
