@@ -94,6 +94,9 @@ class Study(commands.Cog):
             base_time = max(last_record_time, in_session)
             incr = utilities.timedelta_to_hours(cur_time - base_time) - past_in_session_time
 
+            if incr < 0:
+                self.time_counter_logger.info(f'{utilities.get_time()} incr: {incr}\ncur_time: {cur_time}\nbase_time: {base_time}\npast_in_session_time: {past_in_session_time}\nin_session_name: {in_session_name}')
+
             if in_session_name[-8:] == str(utilities.config["business"]["update_time"]) + ":00:00":
                 # standard incr is what gets used for monthly and weekly. In other words, official incr is one of the sets of stats
                 std_incr = incr
@@ -222,7 +225,7 @@ class Study(commands.Cog):
                 if yesterday - self.birthtime < timedelta(days=1):
                     reset = False
                 else:
-                    reset = await utilities.get_redis_score(self.redis_client, yesterday_str, user_id) >= threshold
+                    reset = (await utilities.get_redis_score(self.redis_client, yesterday_str, user_id)) < threshold
 
                 await self.add_streak(user_id, reset)
 
