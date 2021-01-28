@@ -45,7 +45,7 @@ A bot that manages your timezone
 Typical usage:
 Know the 2-letter code for your country (If you don't know it, visit https://gist.github.com/pamelafox/986163)
 Set it with `.tzset <your code>`
-Check it with `.tzget and .time`
+Check it with `.tzget` and `.time`
 """
 timezone_bot = commands.Bot(command_prefix=os.getenv('timezone_prefix'), description=description)
 
