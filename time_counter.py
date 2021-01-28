@@ -91,11 +91,11 @@ class Study(commands.Cog):
         for in_session, in_session_name in zip(rank_categories_val[0], in_session_names):
             past_in_session_time = self.redis_client.hget(in_session_name, user_id)
             past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
-            base_time = max(last_record_time, in_session)
-            incr = utilities.timedelta_to_hours(cur_time - base_time) - past_in_session_time
+            incr = utilities.timedelta_to_hours(cur_time - last_record_time) - past_in_session_time
 
             if incr < 0:
-                self.time_counter_logger.info(f'{utilities.get_time()} incr: {incr}\ncur_time: {cur_time}\nbase_time: {base_time}\npast_in_session_time: {past_in_session_time}\nin_session_name: {in_session_name}')
+                self.time_counter_logger.info(
+                    f'{utilities.get_time()} incr: {incr}\ncur_time: {cur_time}\nlast_record_time: {last_record_time}\npast_in_session_time: {past_in_session_time}\nin_session_name: {in_session_name}\nuser_id: {user_id}')
 
             if in_session_name[-8:] == str(utilities.config["business"]["update_time"]) + ":00:00":
                 # standard incr is what gets used for monthly and weekly. In other words, official incr is one of the sets of stats
