@@ -92,10 +92,8 @@ class Study(commands.Cog):
             past_in_session_time = self.redis_client.hget(in_session_name, user_id)
             past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
             incr = utilities.timedelta_to_hours(cur_time - last_record_time) - past_in_session_time
-
-            if incr < 0:
-                self.time_counter_logger.info(
-                    f'{utilities.get_time()} incr: {incr}\ncur_time: {cur_time}\nlast_record_time: {last_record_time}\npast_in_session_time: {past_in_session_time}\nin_session_name: {in_session_name}\nuser_id: {user_id}')
+            # Max necessary since an enter channel (or other voice status change) update/sync might be called earlier than the exit one
+            incr = max(incr, 0)
 
             if in_session_name[-8:] == str(utilities.config["business"]["update_time"]) + ":00:00":
                 # standard incr is what gets used for monthly and weekly. In other words, official incr is one of the sets of stats
