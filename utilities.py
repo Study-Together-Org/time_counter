@@ -166,6 +166,8 @@ def parse_time(timepoint, zone_obj=ZoneInfo(config["business"]["timezone"])):
 
     if parsed.replace(tzinfo=zone_obj) >= datetime.now(zone_obj):
         parsed -= timedelta(days=1)
+    elif parsed.replace(tzinfo=zone_obj) < datetime.now(zone_obj) - timedelta(days=1):
+        parsed += timedelta(days=1)
 
     return parsed
 
