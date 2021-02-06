@@ -171,6 +171,7 @@ class Study(commands.Cog):
                                 detail=last_record.detail,
                                 creation_time=cur_time)
                 self.sqlalchemy_session.add(record)
+
                 if category_offset == 0:
                     # Add start for cur
                     # A bit inelegant when a user with video on switches to another channel
@@ -191,9 +192,13 @@ class Study(commands.Cog):
                 self.sqlalchemy_session.add(record)
 
         cur_time += timedelta(microseconds=1)
-        record = Action(user_id=user_id, category=cur_category, detail=channel.id,
-                        creation_time=cur_time)
-        self.sqlalchemy_session.add(record)
+
+        # Users might jump to non-monitored channels
+        if check_categories(channel):
+            record = Action(user_id=user_id, category=cur_category, detail=channel.id,
+                            creation_time=cur_time)
+            self.sqlalchemy_session.add(record)
+
         utilities.commit_or_rollback(self.sqlalchemy_session)
 
         return last_record.creation_time if last_record else cur_time
