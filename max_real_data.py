@@ -55,7 +55,7 @@ def insert_sorted_set():
             considered_socre = utilities.round_num(to_consider[k])
 
             if cur_score >= considered_socre:
-                print(cur_score, considered_socre)
+                # print(cur_score, considered_socre)
                 del to_insert[k]
 
         if to_insert:
