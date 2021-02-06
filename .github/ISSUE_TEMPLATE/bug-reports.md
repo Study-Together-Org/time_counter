@@ -13,7 +13,7 @@ A clear and concise description of what the bug is.
 (If relevant) The Discord user ID for the user
 
 **Screenshots**
-If applicable, add screenshots to help explain your problem.
+(If applicable) Make sure to **include the sender and the full message(s)**
 
 **Additional Notes**
 Add any other context about the problem here.
