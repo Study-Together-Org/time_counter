@@ -87,33 +87,18 @@ class Study(commands.Cog):
         in_session_incrs = []
         std_incr = None
 
-        # TODO optimize: most values here will be the same and this is the bottleneck
         for in_session, in_session_name in zip(rank_categories_val[0], in_session_names):
             past_in_session_time = self.redis_client.hget(in_session_name, user_id)
             past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
             base_time = max(last_record_time, in_session)
             incr = utilities.timedelta_to_hours(cur_time - base_time) - past_in_session_time
-            # Max necessary since an enter channel (or other voice status change) update/sync might be called earlier than the exit one
-
-            incr = max(incr, 0)
 
             if in_session_name[-8:] == str(utilities.config["business"]["update_time"]) + ":00:00":
                 # standard incr is what gets used for monthly and weekly. In other words, official incr is one of the sets of stats
-                std_incr = incr
-                prev_std_incr_name = "in_session_" + "daily_" + str(in_session - timedelta(days=1))
-                prev_std_incr = self.redis_client.hget(prev_std_incr_name, user_id)
-                prev_std_incr = float(prev_std_incr) if prev_std_incr else 0
+                std_incr = utilities.timedelta_to_hours(cur_time - last_record_time) - past_in_session_time
 
-                # debugging
-                if prev_std_incr < 0:
-                    self.time_counter_logger.info(
-                        f'{utilities.get_time()} prev_std_incr_name: {prev_std_incr_name}\nprev_std_incr: {prev_std_incr}\ncur_time: {cur_time}\nlast_record_time: {last_record_time}\npast_in_session_time: {past_in_session_time}\nin_session_name: {in_session_name}\nuser_id: {user_id}\n')
-                    prev_std_incr = max(prev_std_incr, 0)
-
-                # For actions produced after the reset time, we need to account for the time in the previous time interval as well
-                if prev_std_incr:
-                    std_incr += prev_std_incr
-                    self.redis_client.hset(prev_std_incr_name, user_id, 0)
+            # Max necessary since an enter channel (or other voice status change) update/sync might be called earlier than the exit one
+            incr = max(incr, 0)
 
             in_session_incrs.append(incr)
             new_val = 0 if reset else incr + past_in_session_time
