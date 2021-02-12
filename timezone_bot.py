@@ -43,9 +43,11 @@ description = f"""
 A bot that manages your timezone
 
 Typical usage:
-Know the 2-letter code for your country (If you don't know it, visit https://gist.github.com/pamelafox/986163)
-Set it with `.tzset <your code>`
-Check it with `.tzget` and `.time`
+1. Know the 2-letter code for your country. 
+You may get it from https://gist.github.com/Zackhardtoname/c2a01465ac25eec17038c6e871be17ef
+2. Get available timezones in your country with .tzlist your_code (example: .tzset US)
+3. Set it with .tzset one_of_the_timezones (example: .tzset America/New_York)
+(4. Check it with .tzget and .time)
 """
 timezone_bot = commands.Bot(command_prefix=os.getenv('timezone_prefix'), description=description)
 
