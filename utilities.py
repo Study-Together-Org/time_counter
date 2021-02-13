@@ -446,5 +446,5 @@ def commit_or_rollback(session):
         raise
 
 
-def get_staff_role():
-    return config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "staff"]
+def get_role_id(name):
+    return config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + name]

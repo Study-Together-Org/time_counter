@@ -363,6 +363,7 @@ class Study(commands.Cog):
 
         Note the weekly time resets on Monday GMT+0 5pm and the monthly time 1st day of the month 5pm
         """
+        # TODO implement all-time
         text = ""
 
         # if the user has not specified someone else
@@ -484,7 +485,7 @@ Longest study streak: {longestStreak}
         await ctx.send(f"**Daily starts tracking at {display_timezone} {display_timepoint}**")
         await ctx.send(embed=emb)
 
-    @commands.has_any_role(utilities.get_staff_role())
+    @commands.has_any_role(utilities.get_role_id("staff"), utilities.get_role_id("dev"))
     @commands.command(aliases=["CHANGE", "c", "C"])
     async def change(self, ctx, dataset_name, val: float, user: discord.Member = None):
         """
