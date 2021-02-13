@@ -486,22 +486,38 @@ Longest study streak: {longestStreak}
 
     @commands.has_any_role(utilities.get_staff_role())
     @commands.command(aliases=["CHANGE", "c", "C"])
-    async def change(self, ctx, redis_set_name, val: int, user: discord.Member = None):
+    async def change(self, ctx, dataset_name, val: float, user: discord.Member = None):
         """
         Changes users' hours (use '~help change' to see more)
-        Currently, only zset data types are supported (all_time and monthly_*)
+        Only streak data and zset data types are supported ("longest_streak", "current_streak", "all_time" and "monthly_*")
+        
+        example: '-c current_streak 21 @studydev' changes the current_streak data to be 21 and update the longest_streak if sensible
+        example: '-c longest_streak 210 @studydev' changes the longest_streak data to be 210
 
-        examples: '-c monthly_February 200 @studydev' changes the February monthly data to be 200 hours
-        examples: '-c all_time 400 @studydev' changes the all_time data to be 400 hours
+        examples: '-c monthly_February 200.5 @studydev' changes the February monthly data to be 200 hours
+        examples: '-c all_time 400.21 @studydev' changes the all_time data to be 400.21 hours
 
-        Suggestion: test any change commands on @studydev first.
+        Suggestion: ALWAYS test any change commands on @studydev first.
         """
+        user_id = user.id
 
-        await ctx.send(f"redis_set_name: {redis_set_name}\nval: {val}")
+        if dataset_name in ["longest_streak", "current_streak"]:
+            val = round(val)
+            user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user_id).first()
 
-        if self.redis_client.type(redis_set_name) == "zset":
-            self.redis_client.zrem(redis_set_name, user.id)
-            self.redis_client.zadd(redis_set_name, {user.id: val})
+            if dataset_name == "longest_streak":
+                user_sql_obj.longest_streak = val
+            elif dataset_name == "current_streak":
+                user_sql_obj.current_streak = val
+                user_sql_obj.longest_streak = max(val, user_sql_obj.longest_streak)
+
+            utilities.commit_or_rollback(self.sqlalchemy_session)
+
+        elif self.redis_client.type(dataset_name) == "zset":
+            self.redis_client.zrem(dataset_name, user_id)
+            self.redis_client.zadd(dataset_name, {user_id: val})
+
+        await ctx.send(f"user_id: {user_id}, dataset_name: {dataset_name}\nval: {val}")
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, exception):
