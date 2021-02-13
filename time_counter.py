@@ -487,6 +487,16 @@ Longest study streak: {longestStreak}
     @commands.has_any_role(utilities.get_staff_role())
     @commands.command(aliases=["CHANGE", "c", "C"])
     async def change(self, ctx, redis_set_name, val: int, user: discord.Member = None):
+        """
+        Changes users' hours (use '~help change' to see more)
+        Currently, only zset data types are supported (all_time and monthly_*)
+
+        examples: '-c monthly_February 200 @studydev' changes the February monthly data to be 200 hours
+        examples: '-c all_time 400 @studydev' changes the all_time data to be 400 hours
+
+        Suggestion: test any change commands on @studydev first.
+        """
+
         await ctx.send(f"redis_set_name: {redis_set_name}\nval: {val}")
 
         if self.redis_client.type(redis_set_name) == "zset":
