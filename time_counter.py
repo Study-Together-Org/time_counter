@@ -299,7 +299,7 @@ class Study(commands.Cog):
                 self.sqlalchemy_session.add(to_insert)
                 utilities.commit_or_rollback(self.sqlalchemy_session)
 
-    @commands.command(aliases=["rank"])
+    @commands.command(aliases=["P", "rank"])
     async def p(self, ctx, user: discord.Member = None):
         """
         Displays your role placement for this month (use '~help p' to see more)
@@ -342,7 +342,7 @@ class Study(commands.Cog):
         emb = discord.Embed(title=utilities.config["embed_titles"]["p"], description=text)
         await ctx.send(embed=emb)
 
-    @commands.command(aliases=['top'])
+    @commands.command(aliases=["LB", "top", "l", "L"])
     async def lb(self, ctx, timepoint=None, page: int = -1, user: discord.Member = None):
         """
         Displays statistics for people with similar studytime (use '~help lb' to see more)
@@ -410,7 +410,7 @@ class Study(commands.Cog):
     #     if isinstance(error, commands.errors.BadArgument):
     #         await ctx.send("You provided a wrong argument, more likely you provide an invalid number for the page.")
 
-    @commands.command()
+    @commands.command(aliases=["ME", "m", "M"])
     async def me(self, ctx, timepoint=None, user: discord.Member = None):
         """
         Displays statistics for your studytime (use '~help me' to see more)
@@ -484,6 +484,15 @@ Longest study streak: {longestStreak}
         await ctx.send(f"**Daily starts tracking at {display_timezone} {display_timepoint}**")
         await ctx.send(embed=emb)
 
+    @commands.has_any_role(utilities.get_staff_role())
+    @commands.command(aliases=["CHANGE", "c", "C"])
+    async def change(self, ctx, redis_set_name, val: int, user: discord.Member = None):
+        await ctx.send(f"redis_set_name: {redis_set_name}\nval: {val}")
+
+        if self.redis_client.type(redis_set_name) == "zset":
+            self.redis_client.zrem(redis_set_name, user.id)
+            self.redis_client.zadd(redis_set_name, {user.id: val})
+
     @commands.Cog.listener()
     async def on_command_error(self, ctx, exception):
         print(utilities.get_time(), exception)
@@ -506,8 +515,6 @@ def setup(bot):
             await ctx.message.delete()
             await m.delete()
             return False
-
-    # TODO a staff command to change ppl's time
 
     bot.add_check(botSpam)
 

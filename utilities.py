@@ -444,3 +444,7 @@ def commit_or_rollback(session):
         print(e)
         session.rollback()
         raise
+
+
+def get_staff_role():
+    return config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "staff"]
