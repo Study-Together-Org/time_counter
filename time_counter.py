@@ -92,16 +92,16 @@ class Study(commands.Cog):
             past_in_session_time = float(past_in_session_time) if past_in_session_time else 0
             base_time = max(last_record_time, in_session)
             incr = utilities.timedelta_to_hours(cur_time - base_time) - past_in_session_time
+            # Max necessary since an enter channel (or other voice status change) update/sync might be called earlier than the exit one
+            incr = max(incr, 0)
+            in_session_incrs.append(incr)
+            new_val = 0 if reset else incr + past_in_session_time
 
             if in_session_name[-8:] == str(utilities.config["business"]["update_time"]) + ":00:00":
                 # standard incr is what gets used for monthly and weekly. In other words, official incr is one of the sets of stats
                 std_incr = utilities.timedelta_to_hours(cur_time - last_record_time) - past_in_session_time
+                new_val = 0 if reset else std_incr + past_in_session_time
 
-            # Max necessary since an enter channel (or other voice status change) update/sync might be called earlier than the exit one
-            incr = max(incr, 0)
-
-            in_session_incrs.append(incr)
-            new_val = 0 if reset else incr + past_in_session_time
             self.redis_client.hset(in_session_name, user_id, new_val)
 
         utilities.increment_studytime(category_key_names, self.redis_client, user_id,
