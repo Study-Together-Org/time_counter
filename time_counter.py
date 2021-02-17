@@ -525,6 +525,14 @@ Longest study streak: {longestStreak}
         print(utilities.get_time(), exception)
         await ctx.send(f"{exception}\nTry ~help?")
 
+    @commands.Cog.listener()
+    async def on_guild_unavailable(self, guild):
+        self.time_counter_logger.info(f'{utilities.get_time()} guild unavailable')
+
+    @commands.Cog.listener()
+    async def on_guild_available(self, guild):
+        self.time_counter_logger.info(f'{utilities.get_time()} guild available')
+
 
 def setup(bot):
     bot.add_cog(Study(bot))
