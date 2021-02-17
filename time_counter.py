@@ -98,7 +98,7 @@ class Study(commands.Cog):
             self.redis_client.hset(in_session_name, user_id, new_val)
 
         # standard incr is what gets used for monthly and weekly. In other words, official incr is one of the sets of stats
-        in_session_std_time_name = f"in_session_std_daily_{utilities.get_day_start()}"
+        in_session_std_time_name = f"in_session_std"
         in_session_std_time = self.redis_client.hget(in_session_std_time_name, user_id)
         in_session_std_time = float(in_session_std_time) if in_session_std_time else 0
         std_incr = utilities.timedelta_to_hours(cur_time - last_record_time) - in_session_std_time
