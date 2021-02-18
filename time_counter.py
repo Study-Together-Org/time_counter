@@ -35,6 +35,7 @@ class Study(commands.Cog):
         self.supporter_role = None
 
         # TODO fix when files not existent
+        self.data_change_logger = utilities.get_logger("study_executor_data_change", "data_change.log")
         self.time_counter_logger = utilities.get_logger("study_executor_time_counter", "discord.log")
         self.heartbeat_logger = utilities.get_logger("study_executor_heartbeat", "heartbeat.log")
         self.redis_client = utilities.get_redis_client()
@@ -102,6 +103,11 @@ class Study(commands.Cog):
         in_session_std_time = self.redis_client.hget(in_session_std_time_name, user_id)
         in_session_std_time = float(in_session_std_time) if in_session_std_time else 0
         std_incr = utilities.timedelta_to_hours(cur_time - last_record_time) - in_session_std_time
+
+        f = self.data_change_logger.info if std_incr >= 0 else self.data_change_logger.critical
+        f(f'{utilities.get_time()} incr: {std_incr}\ncur_time: {cur_time}\nlast_record_time: {last_record_time}\npast_in_session_time: {in_session_std_time}\nuser_id: {user_id}')
+
+        std_incr = max(std_incr, 0)
         in_session_std_time = 0 if reset else std_incr + in_session_std_time
         self.redis_client.hset(in_session_std_time_name, user_id, in_session_std_time)
 
