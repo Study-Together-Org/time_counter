@@ -432,9 +432,18 @@ def increment_studytime(category_key_names, redis_client, user_id, in_session_in
     if std_incr is None:
         std_incr = timedelta_to_hours(get_time() - last_time)
 
+    monthly_now = "undefined"
+    all_time_now = "undefined"
+
     for i, sorted_set_name in enumerate(category_key_names):
         incr = in_session_incrs[i] if i < num_intervals else std_incr
-        redis_client.zincrby(sorted_set_name, incr, user_id)
+        change = redis_client.zincrby(sorted_set_name, incr, user_id)
+        if i == len(category_key_names) - 2:
+            monthly_now = change
+        elif i == len(category_key_names) - 1:
+            all_time_now = change
+
+    return monthly_now, all_time_now
 
 
 def commit_or_rollback(session):

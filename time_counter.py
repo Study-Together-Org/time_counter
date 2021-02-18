@@ -104,15 +104,15 @@ class Study(commands.Cog):
         in_session_std_time = float(in_session_std_time) if in_session_std_time else 0
         std_incr = utilities.timedelta_to_hours(cur_time - last_record_time) - in_session_std_time
 
-        f = self.data_change_logger.info if std_incr >= 0 else self.data_change_logger.critical
-        f(f'{utilities.get_time()} incr: {std_incr}\ncur_time: {cur_time}\nlast_record_time: {last_record_time}\npast_in_session_time: {in_session_std_time}\nuser_id: {user_id}')
-
+        neg_msg = f"std_incr Negative: {std_incr}\n" if std_incr < 0 else ""
         std_incr = max(std_incr, 0)
         in_session_std_time = 0 if reset else std_incr + in_session_std_time
         self.redis_client.hset(in_session_std_time_name, user_id, in_session_std_time)
 
-        utilities.increment_studytime(category_key_names, self.redis_client, user_id,
-                                      in_session_incrs=in_session_incrs, std_incr=std_incr)
+        monthly_now, all_time_now = utilities.increment_studytime(category_key_names, self.redis_client, user_id,
+                                                in_session_incrs=in_session_incrs, std_incr=std_incr)
+        log_msg = f'{utilities.get_time()}\n{neg_msg}monthly_now: {monthly_now}\nall_time_now: {all_time_now}\nincr: {std_incr}\ncur_time: {cur_time}\nlast_record_time: {last_record_time}\npast_in_session_time: {in_session_std_time}\nuser_id: {user_id}'
+        self.data_change_logger.info(log_msg)
 
     async def get_info_from_leaderboard(self, sorted_set_name, start=0, end=-1):
         if start < 0:
