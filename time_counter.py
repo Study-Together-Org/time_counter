@@ -499,11 +499,11 @@ Longest study streak: {longestStreak}
         Changes users' hours (use '~help change' to see more)
         Only streak data and zset data types are supported ("longest_streak", "current_streak", "all_time" and "monthly_*")
         
-        example: '-c current_streak 21 @studydev' changes the current_streak data to be 21 and update the longest_streak if sensible
-        example: '-c longest_streak 210 @studydev' changes the longest_streak data to be 210
+        example: '-c current_streak 21 @target_user' changes the current_streak data to be 21 and update the longest_streak if sensible
+        example: '-c longest_streak 210 @target_user' changes the longest_streak data to be 210
 
-        examples: '-c monthly_February 200.5 @studydev' changes the February monthly data to be 200 hours
-        examples: '-c all_time 400.21 @studydev' changes the all_time data to be 400.21 hours
+        examples: '-c monthly_February 200.5 @target_user' changes the February monthly data to be 200 hours for user
+        examples: '-c all_time 400.21 @target_user' changes the all_time data to be 400.21 hours
 
         Suggestion: ALWAYS test any change commands on @studydev first.
         """
