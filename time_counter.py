@@ -237,6 +237,9 @@ class Study(commands.Cog):
 
     async def update_stats(self, ctx, user):
         # Only update stats if a user is in a monitored channel when issuing the command
+        if os.getenv("mode") != "test" and user.bot:
+            return
+
         if not user.bot and (not user.voice or user.voice.channel.category.id not in monitored_categories):
             return
 
@@ -267,6 +270,9 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
+        if os.getenv("mode") != "test" and member.bot:
+            return
+
         await self.on_member_join(member)
 
         if not (check_categories(before.channel) or check_categories(after.channel)):
