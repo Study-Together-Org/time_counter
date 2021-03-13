@@ -568,9 +568,11 @@ def setup(bot):
 
 if __name__ == '__main__':
     # Potentially accept multiple prefixes
+    # TODO move these prefixes to config.hjson
     prefix = os.getenv("prefix")
     prefix_2 = os.getenv("prefix_2")
-    prefixes = [prefix, prefix_2] if prefix_2 else prefix
+    prefix_3 = os.getenv("prefix_3")
+    prefixes = [prefix, prefix_2, prefix_3] if prefix_2 else prefix
 
     client = commands.Bot(command_prefix=prefixes, intents=Intents.all(),
                           description="Your study statistics and rankings")
