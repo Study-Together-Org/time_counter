@@ -31,7 +31,7 @@ class Study(commands.Cog):
         self.bot = bot
         self.guild = None
         self.role_objs = None
-        self.role_name_to_obj = None
+        self.role_names = None
         self.supporter_role = None
 
         # TODO fix when files not existent
@@ -53,10 +53,9 @@ class Study(commands.Cog):
         """
         if not self.guild:
             self.guild = self.bot.get_guild(utilities.get_guildID())
-        self.role_name_to_obj = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "study_roles"]
+        self.role_names = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "study_roles"]
         # supporter_role is a role for people who have denoted money
-        self.supporter_role = self.guild.get_role(
-            utilities.config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "supporter"])
+        self.supporter_role = utilities.config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "supporter"]
 
     async def get_discord_name(self, user_id):
         # In test mode, we might have fake data with fake ids. It is necessary to generate fake user info as well.
@@ -337,7 +336,7 @@ class Study(commands.Cog):
         if not hours_cur_month:
             hours_cur_month = 0
 
-        role, next_role, time_to_next_role = utilities.get_role_status(self.role_name_to_obj, hours_cur_month)
+        role, next_role, time_to_next_role = utilities.get_role_status(self.role_names, hours_cur_month)
         # TODO update user roles
 
         text = f"""
@@ -489,7 +488,8 @@ Longest study streak: {longestStreak}
         foot = name
 
         # Add Fancy decoration for supporter_role
-        if self.supporter_role in user.roles:
+        # user.roles is a list
+        if self.supporter_role in [role.id for role in user.roles]:
             foot = "⭐ " + foot
 
         emb.set_footer(text=foot, icon_url=user.avatar_url)
