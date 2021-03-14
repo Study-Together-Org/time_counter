@@ -534,8 +534,10 @@ Longest study streak: {longestStreak}
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, exception):
-        print(utilities.get_time(), exception)
-        await ctx.send(f"{exception}\nTry ~help?")
+        pass
+        # commented out due to overlapping prefixes with the other bots
+        # print(utilities.get_time(), exception)
+        # await ctx.send(f"{exception}\nTry ~help?")
 
     @commands.Cog.listener()
     async def on_guild_unavailable(self, guild):
