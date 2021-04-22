@@ -53,15 +53,15 @@ async def keep_only_updated(bot, new: list):
 
     bot.update_cache = new
 
-    with open("update_cache.json", "w") as f:
-        f.write(json.dumps(new))
+    # with open("update_cache.json", "w") as f:
+    #     f.write(json.dumps(new))
 
     return result
 
 
 class Study(commands.Cog):
     def __init__(self, bot):
-        self.bot = bot
+        self.bot = self.client = bot
         self.guild = None
         self.role_objs = None
         self.role_names = None
@@ -96,19 +96,25 @@ class Study(commands.Cog):
         # print(utilities.get_time(), exception)
         # await ctx.send(f"{exception}\nTry ~help?")
 
-    @tasks.loop(minutes=1)
-    async def update_roles(self):
-        print("Updating roles...")
+    @commands.Cog.listener()
+    async def on_ready(self):
+        # fetch info
+        await self.fetch()
+
+        print("Updating roles...", flush=True)
 
         # get the list of users with their monthly study hours
         users = self.sqlalchemy_session.query(User).all()
         # sort users by id
 
         monthly_session_name = utilities.get_rank_categories()["monthly"]
-        users_monthly_hours = self.redis_client.zrange(monthly_session_name, 0, -1)
+        users_monthly_hours = self.redis_client.zrange(monthly_session_name, 0, -1, withscores=True)
+
+        # print(self.client.get_guild(utilities.get_guildID()).members)
 
         # create a dict of users with their monthly study hours set to 0
-        user_dict = {user.id: 0 for user in users}
+        user_dict = {}
+        # {user.id: 0 for user in users}
 
         # update each user's hours based on redis
         for user_monthly_hours in users_monthly_hours:
@@ -127,7 +133,7 @@ class Study(commands.Cog):
             f.write(json.dumps(user_list))
 
         # get the roles and reverse them
-        roles = list(self.client.roles.values())
+        roles = list(self.role_names.values())
         roles.reverse()
 
         # task for processing the user_list and updating each users roles accordingly
@@ -142,17 +148,18 @@ class Study(commands.Cog):
                 count += 1
 
                 # if the number of entries isn't two, then there is an error
-                if len(e) != 2:
+                if len(user) != 2:
                     break
 
                 # get the member with the id
-                m = self.client.get_guild(self.guildID).get_member(user[0])
+                m = self.client.get_guild(utilities.get_guildID()).get_member(int(user[0]))
+                print(count, len(user_list), user[0], m, flush=True)
 
                 # if user doesn't exist, continue
                 if not m: continue
 
                 # get the user's hours
-                hours = round(int(e[1].replace(',', '')) / 60, 1)
+                hours = user[1]
 
                 # for each role,
                 # remove roles that the user should no longer hold
@@ -161,6 +168,7 @@ class Study(commands.Cog):
                     min_ = float(r["hours"].split("-")[0])
                     max_ = float(r["hours"].split("-")[1])
                     if min_ <= hours < max_ or (hours >= 350 and r["id"] == 676158518956654612):
+                        print("Adding if doesn't already exist", m.guild.get_role(r["id"]) in m.roles)
                         # update roles
                         if not m.guild.get_role(r["id"]) in m.roles:
                             if m not in toUpdate: toUpdate[m] = {"add": [], "remove": []}
@@ -168,6 +176,7 @@ class Study(commands.Cog):
                                 m.guild.get_role(r["id"]))  # await m.add_roles(m.guild.get_role(r["id"]))
                             countAddedRoles += 1
                     else:
+                        print("Removing role if exists", m.guild.get_role(r["id"]) in m.roles)
                         if m.guild.get_role(r["id"]) in m.roles:
                             if m not in toUpdate: toUpdate[m] = {"add": [], "remove": []}
                             toUpdate[m]["remove"].append(
@@ -179,27 +188,23 @@ class Study(commands.Cog):
 
         try:
             # try updating each users roles
+            print("Starting processing", flush=True)
             func = partial(the_task, self, user_list, roles)
             toUpdate = await self.client.loop.run_in_executor(None, func)
-            print(toUpdate)
+            print(toUpdate, flush=True)
             # for (k, v) in toUpdate.items():
             #     await k.add_roles(*v["add"], reason="New rank")
             #     await k.remove_roles(*v["remove"], reason="New rank")
             #     # print(f"Added {len(v['add'])} roles and removed {len(v['remove'])} roles.")
-            print("FINISHED", len(toUpdate))
+            print("FINISHED", len(toUpdate), flush=True)
         except Exception as e:
-            print(get_traceback(e))
-
-    @update_roles.before_loop
-    async def ready_check(self):
-        if not self.client.is_ready():
-            await self.client.wait_until_ready()
-            await asyncio.sleep(10)
+            print("Error", flush=True)
+            print(e, flush=True)
 
 
 def setup(bot):
-    # with open("update_cache.json", "r") as f:
-    #     bot.update_cache = json.loads(f.read())
+    with open("update_cache.json", "r") as f:
+        bot.update_cache = json.loads(f.read())
 
     bot.add_cog(Study(bot))
 
@@ -230,5 +235,7 @@ if __name__ == '__main__':
 
     client = commands.Bot(command_prefix=prefixes, intents=Intents.all(),
                           description="Your study statistics and rankings")
-    client.load_extension('time_counter')
+    print("Loading extension", flush=True)
+    client.load_extension('test_role_update')
+    print("Starting bot", flush=True)
     client.run(os.getenv('bot_token'))
