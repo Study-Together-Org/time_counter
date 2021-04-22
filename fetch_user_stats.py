@@ -81,10 +81,10 @@ async def main():
     daily = pair_data(sheet.range("X2:Y" + str(sheet.row_count)), 2, "daily")
     df_daily = pd.DataFrame(daily[1:], columns=daily[0])
 
-    streaks = pair_data(sheet2.range("A3:C" + str(sheet2.row_count)), 3, "current_streak", "longest_streak")
-    df_streaks = pd.DataFrame(streaks[1:], columns=streaks[0])
+    # streaks = pair_data(sheet2.range("A3:C" + str(sheet2.row_count)), 3, "current_streak", "longest_streak")
+    # df_streaks = pd.DataFrame(streaks[1:], columns=streaks[0])
 
-    return [df_all_time, df_monthly, df_weekly, df_daily, df_streaks]
+    return [df_all_time, df_monthly, df_weekly, df_daily] # , df_streaks
 
 
 @client.event
