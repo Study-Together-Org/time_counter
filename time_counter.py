@@ -683,6 +683,9 @@ Longest study streak: {longestStreak}
             await asyncio.sleep(10)
 
 def setup(bot):
+    # with open("update_cache.json", "r") as f:
+    #     bot.update_cache = json.loads(f.read())
+
     bot.add_cog(Study(bot))
 
     async def botSpam(ctx):
