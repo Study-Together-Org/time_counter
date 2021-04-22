@@ -5,10 +5,11 @@ import utilities
 from models import Action, User
 from sqlalchemy.orm import sessionmaker
 
-eengine = utilities.get_engine()
-Session = sessionmaker(bind=engine)
-sqlalchemy_session = Session()
-redis_client = utilities.get_redis_client()ngine = utilities.get_engine()
+role_names = utilities.config["study_roles"]
+print(role_names)
+print(role_names.values())
+
+engine = utilities.get_engine()
 Session = sessionmaker(bind=engine)
 sqlalchemy_session = Session()
 redis_client = utilities.get_redis_client()
@@ -18,11 +19,12 @@ users = sqlalchemy_session.query(User).all()
 # sort users by id
 
 monthly_session_name = utilities.get_rank_categories()["monthly"]
-users_monthly_hours = redis_client.zrange(monthly_session_name, 0, -1)
+users_monthly_hours = redis_client.zrange(monthly_session_name, 0, -1, withscores=True)
+print(users_monthly_hours[0:10])
 # sort users by id? don't need to if we use dictionaries
 user_dict = {}
-for user in users:
-    user_dict[user.id] = 0
+# for user in users:
+#     user_dict[user.id] = 0
 
 for user_monthly_hours in users_monthly_hours:
     user_dict[user_monthly_hours[0]] = user_monthly_hours[1]
