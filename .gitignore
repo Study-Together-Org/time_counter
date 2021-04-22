@@ -371,3 +371,6 @@ healthchecksdb
 
 
 gugu_scripts/
+
+onlyUpdatedTest.json
+update_cache.json
