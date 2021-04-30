@@ -251,8 +251,6 @@ class Study(commands.Cog):
                 else:
                     reset = (await utilities.get_redis_score(self.redis_client, yesterday_str, user_id)) < threshold
 
-                # Temporary disabled because of a server load issue
-                reset = False
                 await self.add_streak(user_id, reset)
 
             self.redis_client.set(streak_name, 1)
