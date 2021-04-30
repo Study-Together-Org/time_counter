@@ -31,7 +31,7 @@ class Study(commands.Cog):
         self.bot = bot
         self.guild = None
         self.role_objs = None
-        self.role_names = None
+        self.rolename_to_info = None
         self.supporter_role = None
 
         # TODO fix when files not existent
@@ -53,9 +53,11 @@ class Study(commands.Cog):
         """
         if not self.guild:
             self.guild = self.bot.get_guild(utilities.get_guildID())
-        self.role_names = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "study_roles"]
+
+        self.rolename_to_info = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "study_roles"]
         # supporter_role is a role for people who have denoted money
-        self.supporter_role = utilities.config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + "supporter"]
+        self.supporter_role = utilities.config["other_roles"][
+            ("test_" if os.getenv("mode") == "test" else "") + "supporter"]
 
     async def get_discord_name(self, user_id):
         # In test mode, we might have fake data with fake ids. It is necessary to generate fake user info as well.
@@ -109,7 +111,7 @@ class Study(commands.Cog):
         self.redis_client.hset(in_session_std_time_name, user_id, in_session_std_time)
 
         monthly_now, all_time_now = utilities.increment_studytime(category_key_names, self.redis_client, user_id,
-                                                in_session_incrs=in_session_incrs, std_incr=std_incr)
+                                                                  in_session_incrs=in_session_incrs, std_incr=std_incr)
         log_msg = f'{utilities.get_time()}\n{neg_msg}monthly_now: {monthly_now}\nall_time_now: {all_time_now}\nincr: {std_incr}\ncur_time: {cur_time}\nlast_record_time: {last_record_time}\npast_in_session_time: {in_session_std_time}\nuser_id: {user_id}'
         self.data_change_logger.info(log_msg)
 
@@ -338,15 +340,26 @@ class Study(commands.Cog):
         if not hours_cur_month:
             hours_cur_month = 0
 
-        role, next_role, time_to_next_role = utilities.get_role_status(self.role_names, hours_cur_month)
+        pre_role, cur_role, next_role, time_to_next_role = utilities.get_role_status(self.rolename_to_info,
+                                                                                     hours_cur_month)
         # TODO update user roles
+        if cur_role:
+            # assuming the mention format will stay the same
+            role_to_add_id = int(cur_role["mention"][3:-1])
+            role_to_add = discord.utils.get(user.guild.roles, id=role_to_add_id)
+            await user.add_roles(role_to_add)
+
+            if pre_role:
+                role_to_remove_id = int(pre_role["mention"][3:-1])
+                role_to_remove = discord.utils.get(user.guild.roles, id=role_to_remove_id)
+                await user.remove_roles(role_to_remove)
 
         text = f"""
         **User:** ``{name}``\n
         __Study role__ ({utilities.get_time().strftime("%B")})
-        **Current study role:** {role["mention"] if role else "No Role"}
+        **Current study role:** {cur_role["mention"] if cur_role else "No Role"}
         **Next study role:** {next_role["mention"] if next_role else "``👑 Highest rank reached``"}
-        **Role rank:** ``{'👑 ' if role and utilities.role_names.index(role["name"]) + 1 == {len(utilities.role_settings)} else ''}{utilities.role_names.index(role["name"]) + 1 if role else '0'}/{len(utilities.role_settings)}``
+        **Role rank:** ``{'👑 ' if cur_role and utilities.role_names.index(cur_role["name"]) + 1 == {len(utilities.role_settings)} else ''}{utilities.role_names.index(cur_role["name"]) + 1 if cur_role else '0'}/{len(utilities.role_settings)}``
         """
 
         if time_to_next_role:
