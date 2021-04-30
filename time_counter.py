@@ -30,8 +30,8 @@ class Study(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.guild = None
-        self.role_objs = None
-        self.rolename_to_info = None
+        self.role_name_to_obj = None
+        self.role_name_to_info = None
         self.supporter_role = None
 
         # TODO fix when files not existent
@@ -59,8 +59,8 @@ class Study(commands.Cog):
 
         if not self.guild:
             self.guild = self.bot.get_guild(utilities.get_guildID())
-
-        self.rolename_to_info = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "study_roles"]
+        self.role_name_to_info = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "study_roles"]
+        self.role_name_to_obj = {role.name: role for role in self.guild.roles}
         # supporter_role is a role for people who have denoted money
         self.supporter_role = utilities.config["other_roles"][
             ("test_" if os.getenv("mode") == "test" else "") + "supporter"]
@@ -78,20 +78,30 @@ class Study(commands.Cog):
         user = self.bot.get_user(int(user_id)) or await self.bot.fetch_user(int(user_id))
         return f"{user.name} #{user.discriminator}" if user else "(account deleted)"
 
-    def update_role(self, user, role_to_add=None, role_to_remove=None, check_exclusion=False):
-        if role_to_add:
-            # assuming the mention format will stay the same
-            role_to_add_id = int(role_to_add["mention"][3:-1])
-            role_to_add = discord.utils.get(user.guild.roles, id=role_to_add_id)
-            await user.add_roles(role_to_add)
+    async def update_roles(self, user: discord.Member, check_exclusion=False):
+        user_id = user.id
+        rank_categories = utilities.get_rank_categories()
+        hours_cur_month = await utilities.get_redis_score(self.redis_client, rank_categories["monthly"], user_id)
 
+        if not hours_cur_month:
+            hours_cur_month = 0
+        pre_role, cur_role, next_role, time_to_next_role = utilities.get_role_status(self.role_name_to_info,
+                                                                                     hours_cur_month)
         if check_exclusion:
-            role_to_remove = self.role_objs
-
-        if role_to_remove:
-            role_to_remove_id = int(role_to_remove["mention"][3:-1])
+            roles_to_remove = {role_obj for role_name, role_obj in self.role_name_to_obj.items() if role_name in utilities.role_names}
+            roles_to_remove.intersection_update(user.roles)
+            await user.remove_roles(*roles_to_remove)
+        else:
+            role_to_remove_id = int(pre_role["mention"][3:-1])
             role_to_remove = discord.utils.get(user.guild.roles, id=role_to_remove_id)
             await user.remove_roles(role_to_remove)
+
+        # assuming the mention format will stay the same
+        role_to_add_id = int(cur_role["mention"][3:-1])
+        role_to_add = discord.utils.get(user.guild.roles, id=role_to_add_id)
+        await user.add_roles(role_to_add)
+
+        return cur_role, next_role, time_to_next_role
 
     def handle_in_session(self, user_id, reset):
         """
@@ -256,7 +266,7 @@ class Study(commands.Cog):
             self.redis_client.set(streak_name, 1)
             self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
 
-    async def update_stats(self, ctx, user):
+    async def update_stats(self, user):
         # Only update stats if a user is in a monitored channel when issuing the command
         if os.getenv("mode") != "test" and user.bot:
             return
@@ -323,6 +333,8 @@ class Study(commands.Cog):
             # Assumption - a user won't be in a monitored channel with no voice_state_update for more than a day + the grace period (see update_streak)
             await self.update_streak(user_id)
 
+        await self.update_roles(member)
+
     @commands.Cog.listener()
     async def on_member_join(self, member):
         if self.sqlalchemy_session:
@@ -349,22 +361,11 @@ class Study(commands.Cog):
         if not user:
             user = ctx.author
 
-        await self.update_stats(ctx, user)
-
-        name = f"{user.name} #{user.discriminator}"
-        user_id = user.id
-        rank_categories = utilities.get_rank_categories()
-
-        hours_cur_month = await utilities.get_redis_score(self.redis_client, rank_categories["monthly"], user_id)
-        if not hours_cur_month:
-            hours_cur_month = 0
-
-        pre_role, cur_role, next_role, time_to_next_role = utilities.get_role_status(self.rolename_to_info,
-                                                                                     hours_cur_month)
-        self.update_role(user=user, role_to_add=cur_role, prev_role=pre_role)
+        await self.update_stats(user)
+        cur_role, next_role, time_to_next_role = await self.update_roles(user)
 
         text = f"""
-        **User:** ``{name}``\n
+        **User:** ``{user.name} #{user.discriminator}``\n
         __Study role__ ({utilities.get_time().strftime("%B")})
         **Current study role:** {cur_role["mention"] if cur_role else "No Role"}
         **Next study role:** {next_role["mention"] if next_role else "``👑 Highest rank reached``"}
@@ -405,7 +406,8 @@ class Study(commands.Cog):
         if not user:
             user = ctx.author
 
-        await self.update_stats(ctx, user)
+        await self.update_stats(user)
+        await self.update_roles(user)
 
         if timepoint and timepoint != "-":
             timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(ctx, user, timepoint)
@@ -472,7 +474,9 @@ class Study(commands.Cog):
         if not user:
             user = ctx.author
 
-        await self.update_stats(ctx, user)
+        await self.update_stats(user)
+        await self.update_roles(user)
+
         timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(ctx, user, timepoint)
         rank_categories = utilities.get_rank_categories()
         name = user.name + "#" + user.discriminator
@@ -523,7 +527,7 @@ Longest study streak: {longestStreak}
 
     @commands.has_any_role(utilities.get_role_id("staff"), utilities.get_role_id("dev"))
     @commands.command(aliases=["CHANGE", "c", "C"])
-    async def change(self, ctx, dataset_name, val: float, user: discord.Member = None):
+    async def change(self, ctx, dataset_name, val: float, user: discord.Member):
         """
         Changes users' hours (use '~help change' to see more)
         Only streak data and zset data types are supported ("longest_streak", "current_streak", "all_time" and "monthly_*")
@@ -554,6 +558,8 @@ Longest study streak: {longestStreak}
             self.redis_client.zrem(dataset_name, user_id)
             self.redis_client.zadd(dataset_name, {user_id: val})
 
+        # update roles
+        await self.update_roles(user=user, check_exclusion=True)
         await ctx.send(f"user_id: {user_id}, dataset_name: {dataset_name}\nval: {val}")
 
     @commands.Cog.listener()
