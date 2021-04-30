@@ -91,7 +91,7 @@ class Study(commands.Cog):
             roles_to_remove = {role_obj for role_name, role_obj in self.role_name_to_obj.items() if role_name in utilities.role_names}
             roles_to_remove.intersection_update(user.roles)
             await user.remove_roles(*roles_to_remove)
-        else:
+        elif pre_role:
             role_to_remove_id = int(pre_role["mention"][3:-1])
             role_to_remove = discord.utils.get(user.guild.roles, id=role_to_remove_id)
             await user.remove_roles(role_to_remove)
