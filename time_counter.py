@@ -46,11 +46,17 @@ class Study(commands.Cog):
         self.make_heartbeat.start()
         self.birthtime = utilities.get_time()
 
+    async def ready_check(self):
+        if not self.bot.is_ready():
+            await self.bot.wait_until_ready()
+
     async def fetch(self):
         """
         Get discord server objects and info from its api
         Since it is only available after connecting, the bot will catch some initial commands but produce errors util this function is finished, which should be quick
         """
+        await self.ready_check()
+
         if not self.guild:
             self.guild = self.bot.get_guild(utilities.get_guildID())
 
@@ -71,6 +77,21 @@ class Study(commands.Cog):
         # Handle deleted users
         user = self.bot.get_user(int(user_id)) or await self.bot.fetch_user(int(user_id))
         return f"{user.name} #{user.discriminator}" if user else "(account deleted)"
+
+    def update_role(self, user, role_to_add=None, role_to_remove=None, check_exclusion=False):
+        if role_to_add:
+            # assuming the mention format will stay the same
+            role_to_add_id = int(role_to_add["mention"][3:-1])
+            role_to_add = discord.utils.get(user.guild.roles, id=role_to_add_id)
+            await user.add_roles(role_to_add)
+
+        if check_exclusion:
+            role_to_remove = self.role_objs
+
+        if role_to_remove:
+            role_to_remove_id = int(role_to_remove["mention"][3:-1])
+            role_to_remove = discord.utils.get(user.guild.roles, id=role_to_remove_id)
+            await user.remove_roles(role_to_remove)
 
     def handle_in_session(self, user_id, reset):
         """
@@ -342,17 +363,7 @@ class Study(commands.Cog):
 
         pre_role, cur_role, next_role, time_to_next_role = utilities.get_role_status(self.rolename_to_info,
                                                                                      hours_cur_month)
-        # TODO update user roles
-        if cur_role:
-            # assuming the mention format will stay the same
-            role_to_add_id = int(cur_role["mention"][3:-1])
-            role_to_add = discord.utils.get(user.guild.roles, id=role_to_add_id)
-            await user.add_roles(role_to_add)
-
-            if pre_role:
-                role_to_remove_id = int(pre_role["mention"][3:-1])
-                role_to_remove = discord.utils.get(user.guild.roles, id=role_to_remove_id)
-                await user.remove_roles(role_to_remove)
+        self.update_role(user=user, role_to_add=cur_role, prev_role=pre_role)
 
         text = f"""
         **User:** ``{name}``\n
