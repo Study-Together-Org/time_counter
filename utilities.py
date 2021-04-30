@@ -316,26 +316,23 @@ def get_redis_client():
 
 
 def get_role_status(role_name_to_obj, hours_cur_month):
-    cur_role_name = role_names[0]
-    next_role_name = role_names[1]
+    cur_role_idx = -1
 
-    for role_name, begin_hours in role_name_to_begin_hours.items():
+    for idx, begin_hours in enumerate(role_name_to_begin_hours.values()):
         if begin_hours <= hours_cur_month:
-            cur_role_name = role_name
+            cur_role_idx = idx
         else:
-            next_role_name = role_name
             break
 
-    cur_role = role_name_to_obj[cur_role_name]
-    # new members
-    if hours_cur_month < role_name_to_begin_hours[cur_role_name]:
-        cur_role = None
+    # new members should have None as prev_role and cur_role
+    prev_role = role_name_to_obj[role_names[cur_role_idx - 1]] if cur_role_idx > 0 else None
+    cur_role = role_name_to_obj[role_names[cur_role_idx]] if cur_role_idx >= 0 else None
+    # assuming the default cur_role for new members is -1
+    next_role_idx = cur_role_idx + 1
+    next_role = role_name_to_obj[role_names[cur_role_idx + 1]] if next_role_idx < len(role_names) else None
+    time_to_next_role = round_num(role_name_to_begin_hours[next_role["name"]] - hours_cur_month) if next_role_idx < len(role_names) else None
 
-    next_role, time_to_next_role = (
-        role_name_to_obj[next_role_name], round_num(role_name_to_begin_hours[next_role_name] - hours_cur_month)) \
-        if cur_role_name != role_names[-1] else (None, None)
-
-    return cur_role, next_role, time_to_next_role
+    return prev_role, cur_role, next_role, time_to_next_role
 
 
 def get_last_line():
