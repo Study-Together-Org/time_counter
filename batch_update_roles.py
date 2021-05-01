@@ -1,7 +1,7 @@
 import asyncio
 import os
-from datetime import timedelta
 import traceback
+import logging
 import json
 
 from functools import partial
@@ -13,6 +13,8 @@ from sqlalchemy.orm import sessionmaker
 
 import utilities
 from models import Action, User
+
+logging.basicConfig(level=logging.INFO)
 
 load_dotenv("dev.env")
 monitored_key_name = ("test_" if os.getenv("mode") == "test" else "") + "monitored_categories"
@@ -113,8 +115,7 @@ class Study(commands.Cog):
         # print(self.client.get_guild(utilities.get_guildID()).members)
 
         # create a dict of users with their monthly study hours set to 0
-        user_dict = {}
-        # {user.id: 0 for user in users}
+        user_dict = {user.id: 0 for user in users}
 
         # update each user's hours based on redis
         for user_monthly_hours in users_monthly_hours:
@@ -168,7 +169,7 @@ class Study(commands.Cog):
                     min_ = float(r["hours"].split("-")[0])
                     max_ = float(r["hours"].split("-")[1])
                     if min_ <= hours < max_ or (hours >= 350 and r["id"] == 676158518956654612):
-                        print("Adding if doesn't already exist", m.guild.get_role(r["id"]) in m.roles)
+                        # print("Adding if doesn't already exist", m.guild.get_role(r["id"]) in m.roles)
                         # update roles
                         if not m.guild.get_role(r["id"]) in m.roles:
                             if m not in toUpdate: toUpdate[m] = {"add": [], "remove": []}
@@ -176,7 +177,7 @@ class Study(commands.Cog):
                                 m.guild.get_role(r["id"]))  # await m.add_roles(m.guild.get_role(r["id"]))
                             countAddedRoles += 1
                     else:
-                        print("Removing role if exists", m.guild.get_role(r["id"]) in m.roles)
+                        # print("Removing role if exists", m.guild.get_role(r["id"]) in m.roles)
                         if m.guild.get_role(r["id"]) in m.roles:
                             if m not in toUpdate: toUpdate[m] = {"add": [], "remove": []}
                             toUpdate[m]["remove"].append(
@@ -191,11 +192,20 @@ class Study(commands.Cog):
             print("Starting processing", flush=True)
             func = partial(the_task, self, user_list, roles)
             toUpdate = await self.client.loop.run_in_executor(None, func)
-            print(toUpdate, flush=True)
-            # for (k, v) in toUpdate.items():
-            #     await k.add_roles(*v["add"], reason="New rank")
-            #     await k.remove_roles(*v["remove"], reason="New rank")
-            #     # print(f"Added {len(v['add'])} roles and removed {len(v['remove'])} roles.")
+
+            count = 0
+            numPendingUpdates = len(toUpdate)
+            for (k, v) in toUpdate.items():
+                if k is not None:
+                    print(f"{count} / {numPendingUpdates}. Updating roles of: " + k.name, flush=True)
+                    print(v, flush=True)
+                    await k.add_roles(*v["add"], reason="New rank")
+                    await k.remove_roles(*v["remove"], reason="New rank")
+                else:
+                    print("Bug member is none")
+
+                count += 1
+                # print(f"Added {len(v['add'])} roles and removed {len(v['remove'])} roles.")
             print("FINISHED", len(toUpdate), flush=True)
         except Exception as e:
             print("Error", flush=True)
