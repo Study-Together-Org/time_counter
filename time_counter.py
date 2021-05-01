@@ -78,7 +78,7 @@ class Study(commands.Cog):
         user = self.bot.get_user(int(user_id)) or await self.bot.fetch_user(int(user_id))
         return f"{user.name} #{user.discriminator}" if user else "(account deleted)"
 
-    async def update_roles(self, user: discord.Member, check_exclusion=False):
+    async def update_roles(self, user: discord.Member):
         user_id = user.id
         rank_categories = utilities.get_rank_categories()
         hours_cur_month = await utilities.get_redis_score(self.redis_client, rank_categories["monthly"], user_id)
@@ -87,14 +87,9 @@ class Study(commands.Cog):
             hours_cur_month = 0
         pre_role, cur_role, next_role, time_to_next_role = utilities.get_role_status(self.role_name_to_info,
                                                                                      hours_cur_month)
-        if check_exclusion:
-            roles_to_remove = {role_obj for role_name, role_obj in self.role_name_to_obj.items() if role_name in utilities.role_names}
-            roles_to_remove.intersection_update(user.roles)
-            await user.remove_roles(*roles_to_remove)
-        elif pre_role and pre_role["mention"]:
-            role_to_remove_id = int(pre_role["mention"][3:-1])
-            role_to_remove = discord.utils.get(user.guild.roles, id=role_to_remove_id)
-            await user.remove_roles(role_to_remove)
+        roles_to_remove = {role_obj for role_name, role_obj in self.role_name_to_obj.items() if role_name in utilities.role_names}
+        roles_to_remove.intersection_update(user.roles)
+        await user.remove_roles(*roles_to_remove)
 
         if cur_role and cur_role["mention"]:
             # assuming the mention format will stay the same
@@ -560,7 +555,7 @@ Longest study streak: {longestStreak}
             self.redis_client.zadd(dataset_name, {user_id: val})
 
         # update roles
-        await self.update_roles(user=user, check_exclusion=True)
+        await self.update_roles(user=user)
         await ctx.send(f"user_id: {user_id}, dataset_name: {dataset_name}\nval: {val}")
 
     @commands.Cog.listener()
