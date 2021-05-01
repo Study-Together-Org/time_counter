@@ -90,15 +90,20 @@ class Study(commands.Cog):
             hours_cur_month = 0
         pre_role, cur_role, next_role, time_to_next_role = utilities.get_role_status(self.role_name_to_info,
                                                                                      hours_cur_month)
+
+        # not fetching the actual role to save an api call
+        role_to_add_id = int(cur_role["mention"][3:-1]) if cur_role else None
         roles_to_remove = {role_obj for role_name, role_obj in self.role_name_to_obj.items() if role_name in utilities.role_names}
-        roles_to_remove.intersection_update(user.roles)
-        await user.remove_roles(*roles_to_remove)
+        user_roles = user.roles
+        roles_to_remove = {role for role in user_roles if role in roles_to_remove and role.id != role_to_add_id}
+        if roles_to_remove:
+            await user.remove_roles(*roles_to_remove, atomic=False)
 
         if cur_role and cur_role["mention"]:
             # assuming the mention format will stay the same
-            role_to_add_id = int(cur_role["mention"][3:-1])
             role_to_add = discord.utils.get(user.guild.roles, id=role_to_add_id)
-            await user.add_roles(role_to_add)
+            if role_to_add not in user_roles:
+                await user.add_roles(role_to_add, atomic=False)
 
         return cur_role, next_role, time_to_next_role
 
@@ -412,7 +417,6 @@ class Study(commands.Cog):
             user = ctx.author
 
         await self.update_stats(user)
-        await self.update_roles(user)
 
         if timepoint and timepoint != "-":
             timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(ctx, user, timepoint)
@@ -447,6 +451,7 @@ class Study(commands.Cog):
 
         lb_embed.set_footer(text=f"Type ~help lb to see how to go to other pages")
         await ctx.send(embed=lb_embed)
+        await self.update_roles(user)
 
     # @lb.error
     # async def lb_error(self, ctx, error):
@@ -480,7 +485,6 @@ class Study(commands.Cog):
             user = ctx.author
 
         await self.update_stats(user)
-        await self.update_roles(user)
 
         timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(ctx, user, timepoint)
         rank_categories = utilities.get_rank_categories()
@@ -529,6 +533,7 @@ Longest study streak: {longestStreak}
 
         await ctx.send(f"**Daily starts tracking at {display_timezone} {display_timepoint}**")
         await ctx.send(embed=emb)
+        await self.update_roles(user)
 
     @commands.has_any_role(utilities.get_role_id("staff"), utilities.get_role_id("dev"))
     @commands.command(aliases=["CHANGE", "c", "C"])
@@ -564,8 +569,8 @@ Longest study streak: {longestStreak}
             self.redis_client.zadd(dataset_name, {user_id: val})
 
         # update roles
-        await self.update_roles(user=user)
         await ctx.send(f"user_id: {user_id}, dataset_name: {dataset_name}\nval: {val}")
+        await self.update_roles(user=user)
 
     @commands.has_role(utilities.get_role_id("dev"))
     @commands.command()
