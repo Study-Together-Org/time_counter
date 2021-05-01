@@ -34,6 +34,9 @@ class Study(commands.Cog):
         self.role_name_to_info = None
         self.supporter_role = None
 
+        self.command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
+        self.announcement_channel = utilities.config[
+            ("test_" if os.getenv("mode") == "test" else "") + "announcement_channel"]
         # TODO fix when files not existent
         self.data_change_logger = utilities.get_logger("study_executor_data_change", "data_change.log")
         self.time_counter_logger = utilities.get_logger("study_executor_time_counter", "discord.log")
@@ -294,6 +297,11 @@ class Study(commands.Cog):
     async def on_ready(self):
         await self.fetch()
         self.time_counter_logger.info(f'{utilities.get_time()} Ready: logged in as {self.bot.user}')
+
+        for channel_id in self.command_channels:
+            channel = self.bot.get_channel(int(channel_id))
+            msg = f"**\n\nI am back!** :partying_face: "
+            await channel.send(msg)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -558,6 +566,18 @@ Longest study streak: {longestStreak}
         await self.update_roles(user=user)
         await ctx.send(f"user_id: {user_id}, dataset_name: {dataset_name}\nval: {val}")
 
+    @commands.has_role(utilities.get_role_id("dev"))
+    @commands.command()
+    async def logout(self, ctx):
+        command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
+        announcement_channel = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "announcement_channel"]
+
+        for channel_id in command_channels:
+            channel = self.bot.get_channel(int(channel_id))
+            await channel.send(f"Some stuff member just restarted me.\nDetails (about new features? :heart_eyes_cat:) might be posted in <#{announcement_channel}>).\n**I will send a message here when I am back again (soon).** :wave:")
+
+        await self.bot.close()
+
     @commands.Cog.listener()
     async def on_command_error(self, ctx, exception):
         pass
@@ -577,11 +597,14 @@ Longest study streak: {longestStreak}
 def setup(bot):
     bot.add_cog(Study(bot))
 
-    async def botSpam(ctx):
+    async def is_channel_for_commands(ctx):
         """
         Only respond in certain channels to avoid spamming
         """
-        if ctx.channel.id in utilities.config["command_channels"]:
+
+        command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
+
+        if ctx.channel.id in command_channels:
             return True
         else:
             m = await ctx.send(
@@ -591,7 +614,7 @@ def setup(bot):
             await m.delete()
             return False
 
-    bot.add_check(botSpam)
+    bot.add_check(is_channel_for_commands)
 
 
 if __name__ == '__main__':
