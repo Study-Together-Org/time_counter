@@ -17,36 +17,9 @@ from models import Action, User
 logging.basicConfig(level=logging.INFO)
 
 load_dotenv("dev.env")
-monitored_key_name = ("test_" if os.getenv("mode") == "test" else "") + "monitored_categories"
-monitored_categories = utilities.config[monitored_key_name].values()
 
-
-def check_categories(channel):
-    """
-    Check to make sure to monitor only selected channels
-    """
-    if channel and channel.category_id in monitored_categories:
-        return True
-
-    return False
-
-
-def get_traceback(error):
-    # get data from exception
-    etype = type(error)
-    trace = error.__traceback__
-
-    # the verbosity is how large of a traceback to make
-    # more specifically, it's the amount of levels up the traceback goes from the exception source
-    verbosity = 10
-
-    # 'traceback' is the stdlib module, `import traceback`.
-    lines = traceback.format_exception(etype, error, trace, verbosity)
-    txt = '\n'.join(lines)
-
-    return txt
-
-
+# create discord bot Cog that will
+# batch update all user roles on ready
 class Study(commands.Cog):
     def __init__(self, bot):
         self.bot = self.client = bot
@@ -68,37 +41,42 @@ class Study(commands.Cog):
     async def fetch(self):
         """
         Get discord server objects and info from its api
-        Since it is only available after connecting, the bot will catch some initial commands but produce errors util this function is finished, which should be quick
+        Since it is only available after connecting, the bot will catch some initial commands but produce errors until this function is finished, which should be quick
         """
+
+        # set the guild of interest
         if not self.guild:
             self.guild = self.bot.get_guild(utilities.get_guildID())
+
+        # get the relevant role names from the config file based on whether or not we are in test mode
         self.role_names = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "study_roles"]
         # supporter_role is a role for people who have denoted money
         self.supporter_role = utilities.config["other_roles"][
             ("test_" if os.getenv("mode") == "test" else "") + "supporter"]
 
+
     @commands.Cog.listener()
     async def on_command_error(self, ctx, exception):
+        # this bot doesn't respond to commands
         pass
-        # commented out due to overlapping prefixes with the other bots
-        # print(utilities.get_time(), exception)
-        # await ctx.send(f"{exception}\nTry ~help?")
+
 
     @commands.Cog.listener()
     async def on_ready(self):
-        # fetch info
+        # called after the bot initializes
+
+        # fetch initial api info
         await self.fetch()
 
+        # start updating the roles
         print("Updating roles...", flush=True)
 
-        # get the list of users with their monthly study hours
+        # get the list of users from sql
         users = self.sqlalchemy_session.query(User).all()
-        # sort users by id
 
+        # get the users monthly hours from redis
         monthly_session_name = utilities.get_rank_categories()["monthly"]
         users_monthly_hours = self.redis_client.zrange(monthly_session_name, 0, -1, withscores=True)
-
-        # print(self.client.get_guild(utilities.get_guildID()).members)
 
         # create a dict of users with their monthly study hours set to 0
         user_dict = {user.id: 0 for user in users}
@@ -107,14 +85,14 @@ class Study(commands.Cog):
         for user_monthly_hours in users_monthly_hours:
             user_dict[user_monthly_hours[0]] = user_monthly_hours[1]
 
-        # turn the dictionary into a list of [key, value]
+        # turn the dictionary into a list of [user_id, hours_studied_this_month]
         user_list = []
         for key, value in user_dict.items():
             user_list.append([key, value])
 
-        # write the updated roles for debugging
-        with open("onlyUpdatedTest.json", "w") as f:
-            f.write(json.dumps(user_list))
+        # # write the user_list to a file for debugging
+        # with open("onlyUpdatedTest.json", "w") as f:
+        #     f.write(json.dumps(user_list))
 
         # get the roles and reverse them
         roles = list(self.role_names.values())
@@ -133,51 +111,57 @@ class Study(commands.Cog):
 
                 # if the number of entries isn't two, then there is an error
                 if len(user) != 2:
-                    break
+                    print("Invalid user tuple in user_list")
+                    continue
 
-                # get the member with the id
+                # get the member from the discord api by id
                 m = self.client.get_guild(utilities.get_guildID()).get_member(int(user[0]))
-                print(count, len(user_list), user[0], m, flush=True)
 
-                # if user doesn't exist, continue
+                # if user doesn't exist (potentially they left the server), continue
                 if not m: continue
 
-                # get the user's hours
+                # get the user's hours from redis
                 hours = user[1]
 
                 # for each role,
                 # remove roles that the user should no longer hold
                 # add roles that the user now holds
                 for r in roles:
+                    # min_ and max_ are the bounds for the role of interest
                     min_ = float(r["hours"].split("-")[0])
                     max_ = float(r["hours"].split("-")[1])
                     if min_ <= hours < max_ or (hours >= 350 and r["id"] == 676158518956654612):
-                        # print("Adding if doesn't already exist", m.guild.get_role(r["id"]) in m.roles)
-                        # update roles
                         if not m.guild.get_role(r["id"]) in m.roles:
+                            # if user hours are inside the bounds for this role, and the user doesn't already have this role
+                            # store that the role should be added to this user in the `toUpdate` object
                             if m not in toUpdate: toUpdate[m] = {"add": [], "remove": []}
                             toUpdate[m]["add"].append(
-                                m.guild.get_role(r["id"]))  # await m.add_roles(m.guild.get_role(r["id"]))
+                                m.guild.get_role(r["id"]))
                             countAddedRoles += 1
                     else:
-                        # print("Removing role if exists", m.guild.get_role(r["id"]) in m.roles)
                         if m.guild.get_role(r["id"]) in m.roles:
+                            # if user hours are outside the bounds for this role, and the user has this role
+                            # store that the role should be removed from this user in the `toUpdate` object
                             if m not in toUpdate: toUpdate[m] = {"add": [], "remove": []}
                             toUpdate[m]["remove"].append(
                                 m.guild.get_role(r["id"]))  # await m.remove_roles(m.guild.get_role(r["id"]))
                             countRemovedRoles += 1
 
-            # print(f"Checked {count}/{total} members, {countAddedRoles} roles to add and {countRemovedRoles} roles to remove!")
+            # return the dict storing role update information
             return toUpdate
 
         try:
             # try updating each users roles
             print("Starting processing", flush=True)
             func = partial(the_task, self, user_list, roles)
+            # get the update dictionary
             toUpdate = await self.client.loop.run_in_executor(None, func)
 
             count = 0
             numPendingUpdates = len(toUpdate)
+
+            # apply the updates
+            # this can take a while because of api rate limiting
             for (k, v) in toUpdate.items():
                 if k is not None:
                     print(f"{count} / {numPendingUpdates}. Updating roles of: " + k.name, flush=True)
