@@ -297,11 +297,12 @@ class Study(commands.Cog):
     async def on_ready(self):
         await self.fetch()
         self.time_counter_logger.info(f'{utilities.get_time()} Ready: logged in as {self.bot.user}')
+        msg = f"**\n\nI am back!** :partying_face: "
 
         for channel_id in self.command_channels:
             channel = self.bot.get_channel(int(channel_id))
-            msg = f"**\n\nI am back!** :partying_face: "
-            await channel.send(msg)
+            if channel:
+                await channel.send(msg)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -571,10 +572,12 @@ Longest study streak: {longestStreak}
     async def logout(self, ctx):
         command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
         announcement_channel = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "announcement_channel"]
+        msg = f"Some stuff member just restarted me.\nDetails (about new features? :heart_eyes_cat:) might be posted in <#{announcement_channel}>).\n**I will send a message here when I am back again (soon).** :wave:"
 
         for channel_id in command_channels:
             channel = self.bot.get_channel(int(channel_id))
-            await channel.send(f"Some stuff member just restarted me.\nDetails (about new features? :heart_eyes_cat:) might be posted in <#{announcement_channel}>).\n**I will send a message here when I am back again (soon).** :wave:")
+            if channel:
+                await channel.send(msg)
 
         await self.bot.close()
 
