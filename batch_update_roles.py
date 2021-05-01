@@ -47,20 +47,6 @@ def get_traceback(error):
     return txt
 
 
-async def keep_only_updated(bot, new: list):
-    result = []
-    for i in new:
-        if not (i in bot.update_cache):
-            result.append(i)
-
-    bot.update_cache = new
-
-    # with open("update_cache.json", "w") as f:
-    #     f.write(json.dumps(new))
-
-    return result
-
-
 class Study(commands.Cog):
     def __init__(self, bot):
         self.bot = self.client = bot
@@ -125,9 +111,6 @@ class Study(commands.Cog):
         user_list = []
         for key, value in user_dict.items():
             user_list.append([key, value])
-
-        # get only a list of the users that have changed since the last run
-        user_list = await keep_only_updated(self.bot, user_list)
 
         # write the updated roles for debugging
         with open("onlyUpdatedTest.json", "w") as f:
@@ -213,9 +196,6 @@ class Study(commands.Cog):
 
 
 def setup(bot):
-    with open("update_cache.json", "r") as f:
-        bot.update_cache = json.loads(f.read())
-
     bot.add_cog(Study(bot))
 
     async def botSpam(ctx):
