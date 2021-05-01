@@ -1,10 +1,7 @@
 import asyncio
 import os
 from datetime import timedelta
-import traceback
-import json
 
-from functools import partial
 import discord
 from discord import Intents
 from discord.ext import commands, tasks
@@ -29,44 +26,17 @@ def check_categories(channel):
     return False
 
 
-def get_traceback(error):
-    # get data from exception
-    etype = type(error)
-    trace = error.__traceback__
-
-    # the verbosity is how large of a traceback to make
-    # more specifically, it's the amount of levels up the traceback goes from the exception source
-    verbosity = 10
-
-    # 'traceback' is the stdlib module, `import traceback`.
-    lines = traceback.format_exception(etype, error, trace, verbosity)
-    txt = '\n'.join(lines)
-
-    return txt
-
-
-async def keep_only_updated(bot, new: list):
-    result = []
-    for i in new:
-        if not (i in bot.update_cache):
-            result.append(i)
-
-    bot.update_cache = new
-
-    with open("update_cache.json", "w") as f:
-        f.write(json.dumps(new))
-
-    return result
-
-
 class Study(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.guild = None
-        self.role_objs = None
-        self.role_names = None
+        self.role_name_to_obj = None
+        self.role_name_to_info = None
         self.supporter_role = None
 
+        self.command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
+        self.announcement_channel = utilities.config[
+            ("test_" if os.getenv("mode") == "test" else "") + "announcement_channel"]
         # TODO fix when files not existent
         self.data_change_logger = utilities.get_logger("study_executor_data_change", "data_change.log")
         self.time_counter_logger = utilities.get_logger("study_executor_time_counter", "discord.log")
@@ -79,14 +49,21 @@ class Study(commands.Cog):
         self.make_heartbeat.start()
         self.birthtime = utilities.get_time()
 
+    async def ready_check(self):
+        if not self.bot.is_ready():
+            await self.bot.wait_until_ready()
+
     async def fetch(self):
         """
         Get discord server objects and info from its api
         Since it is only available after connecting, the bot will catch some initial commands but produce errors util this function is finished, which should be quick
         """
+        await self.ready_check()
+
         if not self.guild:
             self.guild = self.bot.get_guild(utilities.get_guildID())
-        self.role_names = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "study_roles"]
+        self.role_name_to_info = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "study_roles"]
+        self.role_name_to_obj = {role.name: role for role in self.guild.roles}
         # supporter_role is a role for people who have denoted money
         self.supporter_role = utilities.config["other_roles"][
             ("test_" if os.getenv("mode") == "test" else "") + "supporter"]
@@ -103,6 +80,32 @@ class Study(commands.Cog):
         # Handle deleted users
         user = self.bot.get_user(int(user_id)) or await self.bot.fetch_user(int(user_id))
         return f"{user.name} #{user.discriminator}" if user else "(account deleted)"
+
+    async def update_roles(self, user: discord.Member):
+        user_id = user.id
+        rank_categories = utilities.get_rank_categories()
+        hours_cur_month = await utilities.get_redis_score(self.redis_client, rank_categories["monthly"], user_id)
+
+        if not hours_cur_month:
+            hours_cur_month = 0
+        pre_role, cur_role, next_role, time_to_next_role = utilities.get_role_status(self.role_name_to_info,
+                                                                                     hours_cur_month)
+
+        # not fetching the actual role to save an api call
+        role_to_add_id = int(cur_role["mention"][3:-1]) if cur_role else None
+        roles_to_remove = {role_obj for role_name, role_obj in self.role_name_to_obj.items() if role_name in utilities.role_names}
+        user_roles = user.roles
+        roles_to_remove = {role for role in user_roles if role in roles_to_remove and role.id != role_to_add_id}
+        if roles_to_remove:
+            await user.remove_roles(*roles_to_remove, atomic=False)
+
+        if cur_role and cur_role["mention"]:
+            # assuming the mention format will stay the same
+            role_to_add = discord.utils.get(user.guild.roles, id=role_to_add_id)
+            if role_to_add not in user_roles:
+                await user.add_roles(role_to_add, atomic=False)
+
+        return cur_role, next_role, time_to_next_role
 
     def handle_in_session(self, user_id, reset):
         """
@@ -262,14 +265,12 @@ class Study(commands.Cog):
                 else:
                     reset = (await utilities.get_redis_score(self.redis_client, yesterday_str, user_id)) < threshold
 
-                # Temporary disabled because of a server load issue
-                reset = False
                 await self.add_streak(user_id, reset)
 
             self.redis_client.set(streak_name, 1)
             self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
 
-    async def update_stats(self, ctx, user):
+    async def update_stats(self, user):
         # Only update stats if a user is in a monitored channel when issuing the command
         if os.getenv("mode") != "test" and user.bot:
             return
@@ -301,6 +302,12 @@ class Study(commands.Cog):
     async def on_ready(self):
         await self.fetch()
         self.time_counter_logger.info(f'{utilities.get_time()} Ready: logged in as {self.bot.user}')
+        msg = f"**\n\nI am back!** :partying_face: "
+
+        for channel_id in self.command_channels:
+            channel = self.bot.get_channel(int(channel_id))
+            if channel:
+                await channel.send(msg)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -336,6 +343,8 @@ class Study(commands.Cog):
             # Assumption - a user won't be in a monitored channel with no voice_state_update for more than a day + the grace period (see update_streak)
             await self.update_streak(user_id)
 
+        await self.update_roles(member)
+
     @commands.Cog.listener()
     async def on_member_join(self, member):
         if self.sqlalchemy_session:
@@ -362,25 +371,15 @@ class Study(commands.Cog):
         if not user:
             user = ctx.author
 
-        await self.update_stats(ctx, user)
-
-        name = f"{user.name} #{user.discriminator}"
-        user_id = user.id
-        rank_categories = utilities.get_rank_categories()
-
-        hours_cur_month = await utilities.get_redis_score(self.redis_client, rank_categories["monthly"], user_id)
-        if not hours_cur_month:
-            hours_cur_month = 0
-
-        role, next_role, time_to_next_role = utilities.get_role_status(self.role_names, hours_cur_month)
-        # TODO update user roles
+        await self.update_stats(user)
+        cur_role, next_role, time_to_next_role = await self.update_roles(user)
 
         text = f"""
-        **User:** ``{name}``\n
+        **User:** ``{user.name} #{user.discriminator}``\n
         __Study role__ ({utilities.get_time().strftime("%B")})
-        **Current study role:** {role["mention"] if role else "No Role"}
+        **Current study role:** {cur_role["mention"] if cur_role else "No Role"}
         **Next study role:** {next_role["mention"] if next_role else "``👑 Highest rank reached``"}
-        **Role rank:** ``{'👑 ' if role and utilities.role_names.index(role["name"]) + 1 == {len(utilities.role_settings)} else ''}{utilities.role_names.index(role["name"]) + 1 if role else '0'}/{len(utilities.role_settings)}``
+        **Role rank:** ``{'👑 ' if cur_role and utilities.role_names.index(cur_role["name"]) + 1 == {len(utilities.role_settings)} else ''}{utilities.role_names.index(cur_role["name"]) + 1 if cur_role else '0'}/{len(utilities.role_settings)}``
         """
 
         if time_to_next_role:
@@ -417,7 +416,7 @@ class Study(commands.Cog):
         if not user:
             user = ctx.author
 
-        await self.update_stats(ctx, user)
+        await self.update_stats(user)
 
         if timepoint and timepoint != "-":
             timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(ctx, user, timepoint)
@@ -452,6 +451,7 @@ class Study(commands.Cog):
 
         lb_embed.set_footer(text=f"Type ~help lb to see how to go to other pages")
         await ctx.send(embed=lb_embed)
+        await self.update_roles(user)
 
     # @lb.error
     # async def lb_error(self, ctx, error):
@@ -484,7 +484,8 @@ class Study(commands.Cog):
         if not user:
             user = ctx.author
 
-        await self.update_stats(ctx, user)
+        await self.update_stats(user)
+
         timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(ctx, user, timepoint)
         rank_categories = utilities.get_rank_categories()
         name = user.name + "#" + user.discriminator
@@ -532,10 +533,11 @@ Longest study streak: {longestStreak}
 
         await ctx.send(f"**Daily starts tracking at {display_timezone} {display_timepoint}**")
         await ctx.send(embed=emb)
+        await self.update_roles(user)
 
     @commands.has_any_role(utilities.get_role_id("staff"), utilities.get_role_id("dev"))
     @commands.command(aliases=["CHANGE", "c", "C"])
-    async def change(self, ctx, dataset_name, val: float, user: discord.Member = None):
+    async def change(self, ctx, dataset_name, val: float, user: discord.Member):
         """
         Changes users' hours (use '~help change' to see more)
         Only streak data and zset data types are supported ("longest_streak", "current_streak", "all_time" and "monthly_*")
@@ -566,7 +568,23 @@ Longest study streak: {longestStreak}
             self.redis_client.zrem(dataset_name, user_id)
             self.redis_client.zadd(dataset_name, {user_id: val})
 
+        # update roles
         await ctx.send(f"user_id: {user_id}, dataset_name: {dataset_name}\nval: {val}")
+        await self.update_roles(user=user)
+
+    @commands.has_role(utilities.get_role_id("dev"))
+    @commands.command()
+    async def logout(self, ctx):
+        command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
+        announcement_channel = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "announcement_channel"]
+        msg = f"Some staff member just restarted me.\nDetails (about new features? :heart_eyes_cat:) might be posted in <#{announcement_channel}>).\n**I will send a message here when I am back again (soon).** :wave:"
+
+        for channel_id in command_channels:
+            channel = self.bot.get_channel(int(channel_id))
+            if channel:
+                await channel.send(msg)
+
+        await self.bot.close()
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, exception):
@@ -583,116 +601,18 @@ Longest study streak: {longestStreak}
     async def on_guild_available(self, guild):
         self.time_counter_logger.info(f'{utilities.get_time()} guild available')
 
-    @tasks.loop(minutes=15)
-    async def update_roles(self):
-        print("Updating roles...")
-
-        # get the list of users with their monthly study hours
-        users = self.sqlalchemy_session.query(User).all()
-        # sort users by id
-
-        monthly_session_name = utilities.get_rank_categories()["monthly"]
-        users_monthly_hours = self.redis_client.zrange(monthly_session_name, 0, -1)
-
-        # create a dict of users with their monthly study hours set to 0
-        user_dict = {user.id: 0 for user in users}
-
-        # update each user's hours based on redis
-        for user_monthly_hours in users_monthly_hours:
-            user_dict[user_monthly_hours[0]] = user_monthly_hours[1]
-
-        # turn the dictionary into a list of [key, value]
-        user_list = []
-        for key, value in user_dict.items():
-            user_list.append([key, value])
-
-        # get only a list of the users that have changed since the last run
-        user_list = await keep_only_updated(self.bot, user_list)
-
-        # write the updated roles for debugging
-        with open("onlyUpdatedTest.json", "w") as f:
-            f.write(json.dumps(user_list))
-
-        # get the roles and reverse them
-        roles = list(self.client.roles.values())
-        roles.reverse()
-
-        # task for processing the user_list and updating each users roles accordingly
-        def the_task(self, user_list, roles):
-            count = 0
-            countAddedRoles = 0
-            countRemovedRoles = 0
-            toUpdate = {}  # {discord.Member: {"add": [discord.Role], "remove": [discord.Role]} }
-
-            # for each user in the list
-            for user in user_list:
-                count += 1
-
-                # if the number of entries isn't two, then there is an error
-                if len(e) != 2:
-                    break
-
-                # get the member with the id
-                m = self.client.get_guild(self.guildID).get_member(user[0])
-
-                # if user doesn't exist, continue
-                if not m: continue
-
-                # get the user's hours
-                hours = round(int(e[1].replace(',', '')) / 60, 1)
-
-                # for each role,
-                # remove roles that the user should no longer hold
-                # add roles that the user now holds
-                for r in roles:
-                    min_ = float(r["hours"].split("-")[0])
-                    max_ = float(r["hours"].split("-")[1])
-                    if min_ <= hours < max_ or (hours >= 350 and r["id"] == 676158518956654612):
-                        # update roles
-                        if not m.guild.get_role(r["id"]) in m.roles:
-                            if m not in toUpdate: toUpdate[m] = {"add": [], "remove": []}
-                            toUpdate[m]["add"].append(
-                                m.guild.get_role(r["id"]))  # await m.add_roles(m.guild.get_role(r["id"]))
-                            countAddedRoles += 1
-                    else:
-                        if m.guild.get_role(r["id"]) in m.roles:
-                            if m not in toUpdate: toUpdate[m] = {"add": [], "remove": []}
-                            toUpdate[m]["remove"].append(
-                                m.guild.get_role(r["id"]))  # await m.remove_roles(m.guild.get_role(r["id"]))
-                            countRemovedRoles += 1
-
-            # print(f"Checked {count}/{total} members, {countAddedRoles} roles to add and {countRemovedRoles} roles to remove!")
-            return toUpdate
-
-        try:
-            # try updating each users roles
-            func = partial(the_task, self, user_list, roles)
-            toUpdate = await self.client.loop.run_in_executor(None, func)
-            for (k, v) in toUpdate.items():
-                await k.add_roles(*v["add"], reason="New rank")
-                await k.remove_roles(*v["remove"], reason="New rank")
-                # print(f"Added {len(v['add'])} roles and removed {len(v['remove'])} roles.")
-            print("FINISHED", len(toUpdate))
-        except Exception as e:
-            print(get_traceback(e))
-
-    @update_roles.before_loop
-    async def ready_check(self):
-        if not self.client.is_ready():
-            await self.client.wait_until_ready()
-            await asyncio.sleep(10)
 
 def setup(bot):
-    # with open("update_cache.json", "r") as f:
-    #     bot.update_cache = json.loads(f.read())
-
     bot.add_cog(Study(bot))
 
-    async def botSpam(ctx):
+    async def is_channel_for_commands(ctx):
         """
         Only respond in certain channels to avoid spamming
         """
-        if ctx.channel.id in utilities.config["command_channels"]:
+
+        command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
+
+        if ctx.channel.id in command_channels:
             return True
         else:
             m = await ctx.send(
@@ -702,7 +622,7 @@ def setup(bot):
             await m.delete()
             return False
 
-    bot.add_check(botSpam)
+    bot.add_check(is_channel_for_commands)
 
 
 if __name__ == '__main__':
