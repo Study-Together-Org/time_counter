@@ -1,11 +1,8 @@
 import asyncio
 import os
-import traceback
 import logging
-import json
 
 from functools import partial
-import discord
 from discord import Intents
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
@@ -18,6 +15,7 @@ logging.basicConfig(level=logging.INFO)
 
 load_dotenv("dev.env")
 
+
 # create discord bot Cog that will
 # batch update all user roles on ready
 class Study(commands.Cog):
@@ -28,7 +26,6 @@ class Study(commands.Cog):
         self.role_names = None
         self.supporter_role = None
 
-        # TODO fix when files not existent
         self.data_change_logger = utilities.get_logger("study_executor_data_change", "data_change.log")
         self.time_counter_logger = utilities.get_logger("study_executor_time_counter", "discord.log")
         self.redis_client = utilities.get_redis_client()
@@ -54,12 +51,10 @@ class Study(commands.Cog):
         self.supporter_role = utilities.config["other_roles"][
             ("test_" if os.getenv("mode") == "test" else "") + "supporter"]
 
-
     @commands.Cog.listener()
     async def on_command_error(self, ctx, exception):
         # this bot doesn't respond to commands
         pass
-
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -201,7 +196,6 @@ def setup(bot):
 
 if __name__ == '__main__':
     # Potentially accept multiple prefixes
-    # TODO move these prefixes to config.hjson
     prefix = os.getenv("prefix")
     prefix_2 = os.getenv("prefix_2")
     prefix_3 = os.getenv("prefix_3")
