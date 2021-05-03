@@ -483,14 +483,14 @@ class Study(commands.Cog):
         """
         if not user:
             user = ctx.author
-
+        user_id = user.id
         await self.update_stats(user)
 
         timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(ctx, user, timepoint)
         rank_categories = utilities.get_rank_categories()
         name = user.name + "#" + user.discriminator
-        user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).first()
-        stats = await utilities.get_user_stats(self.redis_client, user.id, timepoint=timepoint)
+        user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user_id).first()
+        stats = await utilities.get_user_stats(self.redis_client, user_id, timepoint=timepoint)
         average_per_day = utilities.round_num(
             stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
 
@@ -533,6 +533,7 @@ Longest study streak: {longestStreak}
 
         await ctx.send(f"**Daily starts tracking at {display_timezone} {display_timepoint}**")
         await ctx.send(embed=emb)
+        await ctx.send(f"**Visit <https://app.studytogether.com/users/{user_id}> for more details.**")
         await self.update_roles(user)
 
     @commands.has_any_role(utilities.get_role_id("staff"), utilities.get_role_id("dev"))
