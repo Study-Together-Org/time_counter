@@ -25,7 +25,7 @@ python insert_real_data.py  # optional
 touch discord.log
 touch heartbeat.log
 
-nohup python main_time_counter.py > console.log 2>&1 &
+nohup python controller_time_counter.py > console.log 2>&1 &
 # to check: ps -ef | egrep "main_study|PID"
 tail -F discord.log
 # wait for login log to show
