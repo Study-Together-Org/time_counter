@@ -1,5 +1,6 @@
 import asyncio
 import os
+import signal
 from datetime import timedelta
 
 import discord
@@ -93,7 +94,8 @@ class Study(commands.Cog):
 
         # not fetching the actual role to save an api call
         role_to_add_id = int(cur_role["mention"][3:-1]) if cur_role else None
-        roles_to_remove = {role_obj for role_name, role_obj in self.role_name_to_obj.items() if role_name in utilities.role_names}
+        roles_to_remove = {role_obj for role_name, role_obj in self.role_name_to_obj.items() if
+                           role_name in utilities.role_names}
         user_roles = user.roles
         roles_to_remove = {role for role in user_roles if role in roles_to_remove and role.id != role_to_add_id}
         if roles_to_remove:
@@ -258,13 +260,8 @@ class Study(commands.Cog):
                 yesterday = today - timedelta(days=1)
                 yesterday_str = "daily_" + str(yesterday)
 
-                # TODO: fix - will have to be 2 or find some way to do this if Redis has no logs
-                # Make sure there has been a day since the start of the bot in case there is no logs in Redis (database gets reset)
-                if yesterday - self.birthtime < timedelta(days=1):
-                    reset = False
-                else:
-                    reset = (await utilities.get_redis_score(self.redis_client, yesterday_str, user_id)) < threshold
-
+                # assuming there are redis logs
+                reset = (await utilities.get_redis_score(self.redis_client, yesterday_str, user_id)) < threshold
                 await self.add_streak(user_id, reset)
 
             self.redis_client.set(streak_name, 1)
@@ -575,9 +572,10 @@ Longest study streak: {longestStreak}
 
     @commands.has_role(utilities.get_role_id("dev"))
     @commands.command()
-    async def logout(self, ctx):
+    async def restart(self, ctx):
         command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
-        announcement_channel = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "announcement_channel"]
+        announcement_channel = utilities.config[
+            ("test_" if os.getenv("mode") == "test" else "") + "announcement_channel"]
         msg = f"Some staff member just restarted me.\nDetails (about new features? :heart_eyes_cat:) might be posted in <#{announcement_channel}>).\n**I will send a message here when I am back again (soon).** :wave:"
 
         for channel_id in command_channels:
