@@ -573,14 +573,12 @@ Longest study streak: {longestStreak}
     @commands.has_role(utilities.get_role_id("dev"))
     @commands.command()
     async def restart(self, ctx):
-        self.bot.close()
+        await self.bot.close()
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, exception):
+        # avoid logging unfound commands
         pass
-        # commented out due to overlapping prefixes with the other bots
-        # print(utilities.get_time(), exception)
-        # await ctx.send(f"{exception}\nTry ~help?")
 
     @commands.Cog.listener()
     async def on_guild_unavailable(self, guild):
