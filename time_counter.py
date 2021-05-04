@@ -618,7 +618,7 @@ class CustomBot(commands.Bot):
         command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
         announcement_channel = utilities.config[
             ("test_" if os.getenv("mode") == "test" else "") + "announcement_channel"]
-        msg = f"Some staff member just restarted me.\nDetails (about new features? :heart_eyes_cat:) might be posted in <#{announcement_channel}>).\n**I will send a message here when I am back again (soon).** :wave:"
+        msg = f"\n\nSome staff member just restarted me.\nDetails (about new features? :heart_eyes_cat:) might be posted in <#{announcement_channel}>).\n**I will send a message here when I am back again (soon).** :wave:"
 
         for channel_id in command_channels:
             channel = self.get_channel(int(channel_id))
