@@ -1,5 +1,6 @@
 import asyncio
 import os
+import signal
 from datetime import timedelta
 
 import discord
@@ -93,7 +94,8 @@ class Study(commands.Cog):
 
         # not fetching the actual role to save an api call
         role_to_add_id = int(cur_role["mention"][3:-1]) if cur_role else None
-        roles_to_remove = {role_obj for role_name, role_obj in self.role_name_to_obj.items() if role_name in utilities.role_names}
+        roles_to_remove = {role_obj for role_name, role_obj in self.role_name_to_obj.items() if
+                           role_name in utilities.role_names}
         user_roles = user.roles
         roles_to_remove = {role for role in user_roles if role in roles_to_remove and role.id != role_to_add_id}
         if roles_to_remove:
@@ -258,13 +260,8 @@ class Study(commands.Cog):
                 yesterday = today - timedelta(days=1)
                 yesterday_str = "daily_" + str(yesterday)
 
-                # TODO: fix - will have to be 2 or find some way to do this if Redis has no logs
-                # Make sure there has been a day since the start of the bot in case there is no logs in Redis (database gets reset)
-                if yesterday - self.birthtime < timedelta(days=1):
-                    reset = False
-                else:
-                    reset = (await utilities.get_redis_score(self.redis_client, yesterday_str, user_id)) < threshold
-
+                # assuming there are redis logs
+                reset = (await utilities.get_redis_score(self.redis_client, yesterday_str, user_id)) < threshold
                 await self.add_streak(user_id, reset)
 
             self.redis_client.set(streak_name, 1)
@@ -483,14 +480,14 @@ class Study(commands.Cog):
         """
         if not user:
             user = ctx.author
-
+        user_id = user.id
         await self.update_stats(user)
 
         timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(ctx, user, timepoint)
         rank_categories = utilities.get_rank_categories()
         name = user.name + "#" + user.discriminator
-        user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user.id).first()
-        stats = await utilities.get_user_stats(self.redis_client, user.id, timepoint=timepoint)
+        user_sql_obj = self.sqlalchemy_session.query(User).filter(User.id == user_id).first()
+        stats = await utilities.get_user_stats(self.redis_client, user_id, timepoint=timepoint)
         average_per_day = utilities.round_num(
             stats[rank_categories["monthly"]]["study_time"] / utilities.get_num_days_this_month())
 
@@ -533,6 +530,7 @@ Longest study streak: {longestStreak}
 
         await ctx.send(f"**Daily starts tracking at {display_timezone} {display_timepoint}**")
         await ctx.send(embed=emb)
+        await ctx.send(f"**Visit <https://app.studytogether.com/users/{user_id}> for more details.**")
         await self.update_roles(user)
 
     @commands.has_any_role(utilities.get_role_id("staff"), utilities.get_role_id("dev"))
@@ -574,24 +572,13 @@ Longest study streak: {longestStreak}
 
     @commands.has_role(utilities.get_role_id("dev"))
     @commands.command()
-    async def logout(self, ctx):
-        command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
-        announcement_channel = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "announcement_channel"]
-        msg = f"Some staff member just restarted me.\nDetails (about new features? :heart_eyes_cat:) might be posted in <#{announcement_channel}>).\n**I will send a message here when I am back again (soon).** :wave:"
-
-        for channel_id in command_channels:
-            channel = self.bot.get_channel(int(channel_id))
-            if channel:
-                await channel.send(msg)
-
+    async def restart(self, ctx):
         await self.bot.close()
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, exception):
+        # avoid logging unfound commands
         pass
-        # commented out due to overlapping prefixes with the other bots
-        # print(utilities.get_time(), exception)
-        # await ctx.send(f"{exception}\nTry ~help?")
 
     @commands.Cog.listener()
     async def on_guild_unavailable(self, guild):
@@ -625,6 +612,22 @@ def setup(bot):
     bot.add_check(is_channel_for_commands)
 
 
+class CustomBot(commands.Bot):
+    # Overwrite default Bot to get signal handling power
+    async def close(self):
+        command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
+        announcement_channel = utilities.config[
+            ("test_" if os.getenv("mode") == "test" else "") + "announcement_channel"]
+        msg = f"\n\nSome staff member just restarted me.\nDetails (about new features? :heart_eyes_cat:) might be posted in <#{announcement_channel}>).\n**I will send a message here when I am back again (soon).** :wave:"
+
+        for channel_id in command_channels:
+            channel = self.get_channel(int(channel_id))
+            if channel:
+                await channel.send(msg)
+
+        await super().close()
+
+
 if __name__ == '__main__':
     # Potentially accept multiple prefixes
     # TODO move these prefixes to config.hjson
@@ -633,7 +636,7 @@ if __name__ == '__main__':
     prefix_3 = os.getenv("prefix_3")
     prefixes = [prefix, prefix_2, prefix_3] if prefix_2 else prefix
 
-    client = commands.Bot(command_prefix=prefixes, intents=Intents.all(),
-                          description="Your study statistics and rankings")
+    client = CustomBot(command_prefix=prefixes, intents=Intents.all(),
+                       description="Your study statistics and rankings")
     client.load_extension('time_counter')
     client.run(os.getenv('bot_token'))

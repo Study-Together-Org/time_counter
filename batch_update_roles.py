@@ -1,11 +1,8 @@
 import asyncio
 import os
-import traceback
 import logging
-import json
 
 from functools import partial
-import discord
 from discord import Intents
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
@@ -17,6 +14,7 @@ from models import Action, User
 logging.basicConfig(level=logging.INFO)
 
 load_dotenv("dev.env")
+
 
 # create discord bot Cog that will
 # batch update all user roles on ready
