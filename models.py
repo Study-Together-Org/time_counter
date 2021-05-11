@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 from sqlalchemy import ForeignKey, Column, String
-
+from sqlalchemy.dialects.mysql import DATETIME, INTEGER, BIGINT
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -41,6 +41,7 @@ class Action(Base):
 
     user = relationship("User", back_populates="action")
 
+
 class DailyHours(Base):
     __tablename__ = "dailyhours"
 
@@ -51,6 +52,7 @@ class DailyHours(Base):
     rank = Column(INTEGER, nullable=False)
 
     user = relationship("User", back_populates="dailyhours")
+
 
 # This must be in global scope for correct models
 User.action = relationship("Action", order_by=Action.id, back_populates="user")
