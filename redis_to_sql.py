@@ -1,19 +1,23 @@
 #!/usr/bin/env python
 from datetime import datetime
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session
-import os
+from sqlalchemy.orm import sessionmaker
+import os, sys
 import redis
 from models import Action, User, DailyHours
+import argparse
 
-timepoint = "18:00:00"
-date_today = datetime.today().strftime('%Y-%m-%d')
-sorted_set_name = f"{date_today} {timepoint}"
-sorted_set_datetime = datetime.strptime(sorted_set_name, '%Y-%m-%d %H:%M:%S')
+mode="development"
 
-# this is for the set that is going out of bounds, so 24 hours ago pretty much
-# we want to move the daily and in_session_daily sets to sql
-# sql table called `dailyhours`
+# command line arguments
+parser = argparse.ArgumentParser(description="Migrate redis sets to mysql")
+parser.add_argument('time', help="The time of the redis set to migrate in format hh:mm:ss")
+parser.add_argument('--date', default=datetime.today().strftime('%Y-%m-%d'), help="The date of the redis set to migrate in format %Y-%m-%d. Default is today's date")
+args = parser.parse_args()
+
+sorted_set_name = f"daily_{args.date} {args.time}"
+sorted_set_datetime = datetime.strptime(sorted_set_name, 'daily_%Y-%m-%d %H:%M:%S')
+print(sorted_set_name, sorted_set_datetime)
 
 echo = True
 
@@ -30,18 +34,23 @@ redis_client = redis.Redis(
     decode_responses=True
 )
 
-DailyHours.__table__.create(engine)
+# insert from redis set into mysql
+Session = sessionmaker(bind=engine)
+session = Session()
 
-# # also need to handle in_session set
-#
-# # insert from redis set into mysql
-# with Session(engine) as session:
-#     for rank, row in enumerate(redis_client.zrangebyscore(sorted_set_name, "-inf", "inf", withscores=True)):
-#         # session.add(DailyHours(user_id=row[0], timestamp=sorted_set_datetime, study_time=row[1], rank=rank))
-#         print(user_id=row[0], timestamp=sorted_set_datetime, study_time=row[1], rank=rank)
-#
-#     # session.commit()
-#
-# # delete redis set
-# # redis_client.delete(sorted_set_name)
-#
+for rank, row in enumerate(redis_client.zrangebyscore(sorted_set_name, "-inf", "inf", withscores=True)):
+    # get time from in_session
+    # do we need this?
+    in_session_time = redis_client.hget(f"in_session_{sorted_set_name}", row[0])
+    in_session_time = float(in_session_time) if in_session_time else 0
+
+    if mode == "production":
+        session.add(DailyHours(user_id=row[0], timestamp=sorted_set_datetime, study_time=round(row[1], 3), rank=rank))
+    else:
+        print(f"user_id={row[0]}, timestamp={sorted_set_datetime}, study_time={round(row[1], 3)}, rank={rank}")
+
+# uncomment for production
+if mode == "production":
+    session.commit()
+    redis_client.delete(sorted_set_name)
+    redis_client.delete(f"in_session_{sorted_set_name}")
