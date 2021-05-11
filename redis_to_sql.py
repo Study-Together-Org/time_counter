@@ -30,15 +30,18 @@ redis_client = redis.Redis(
     decode_responses=True
 )
 
-# also need to handle in_session set
+DailyHours.__table__.create(engine)
 
-# insert from redis set into mysql
-with Session(engine) as session:
-    for rank, row in enumerate(redis_client.zrangebyscore(sorted_set_name, "-inf", "inf", withscores=True)):
-        # session.add(DailyHours(user_id=row[0], timestamp=sorted_set_datetime, study_time=row[1], rank=rank))
-        print(user_id=row[0], timestamp=sorted_set_datetime, study_time=row[1], rank=rank)
-
-    # session.commit()
-
-# delete redis set
-# redis_client.delete(sorted_set_name)
+# # also need to handle in_session set
+#
+# # insert from redis set into mysql
+# with Session(engine) as session:
+#     for rank, row in enumerate(redis_client.zrangebyscore(sorted_set_name, "-inf", "inf", withscores=True)):
+#         # session.add(DailyHours(user_id=row[0], timestamp=sorted_set_datetime, study_time=row[1], rank=rank))
+#         print(user_id=row[0], timestamp=sorted_set_datetime, study_time=row[1], rank=rank)
+#
+#     # session.commit()
+#
+# # delete redis set
+# # redis_client.delete(sorted_set_name)
+#

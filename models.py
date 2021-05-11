@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 from sqlalchemy import ForeignKey, Column, String
-from sqlalchemy.dialects.mysql import DATETIME, INTEGER, BIGINT
+from sqlalchemy.dialects.mysql import DATETIME, INTEGER, BIGINT, FLOAT
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
