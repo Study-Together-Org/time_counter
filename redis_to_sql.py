@@ -40,7 +40,7 @@ for rank, row in enumerate(redis_client.zrangebyscore(sorted_set_name, "-inf", "
         to_insert.append({
             'user_id': row[0],
             'timestamp': sorted_set_datetime,
-            'studytime': round(row[1], 3),
+            'study_time': round(row[1], 3),
             'rank': rank
         })
     else:
