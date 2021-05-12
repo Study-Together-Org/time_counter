@@ -42,8 +42,8 @@ class Action(Base):
     user = relationship("User", back_populates="action")
 
 
-class DailyHours(Base):
-    __tablename__ = "dailyhours"
+class DailyStudyTime(Base):
+    __tablename__ = "dailystudytime"
 
     id = Column(INTEGER, primary_key=True)
     user_id = Column(BIGINT, ForeignKey('user.id', onupdate="CASCADE"), nullable=False, index=True)
@@ -54,9 +54,35 @@ class DailyHours(Base):
     user = relationship("User", back_populates="dailyhours")
 
 
+class WeeklyStudyTime(Base):
+    __tablename__ = "weeklystudytime"
+
+    id = Column(INTEGER, primary_key=True)
+    user_id = Column(BIGINT, ForeignKey('user.id', onupdate="CASCADE"), nullable=False, index=True)
+    timestamp = Column(DATETIME, nullable=False)
+    study_time = Column(FLOAT, nullable=False)
+    rank = Column(INTEGER, nullable=False)
+
+    user = relationship("User", back_populates="weeklyhours")
+
+
+class MonthlyStudyTime(Base):
+    __tablename__ = "monthlystudytime"
+
+    id = Column(INTEGER, primary_key=True)
+    user_id = Column(BIGINT, ForeignKey('user.id', onupdate="CASCADE"), nullable=False, index=True)
+    timestamp = Column(DATETIME, nullable=False)
+    study_time = Column(FLOAT, nullable=False)
+    rank = Column(INTEGER, nullable=False)
+
+    user = relationship("User", back_populates="monthlyhours")
+
+
 # This must be in global scope for correct models
 User.action = relationship("Action", order_by=Action.id, back_populates="user")
-User.dailyhours = relationship("DailyHours", order_by=DailyHours.timestamp, back_populates="user")
+User.dailystudytime = relationship("DailyStudyTime", order_by=DailyStudyTime.timestamp, back_populates="user")
+User.weeklystudytime = relationship("WeeklyStudyTime", order_by=WeeklyStudyTime.timestamp, back_populates="user")
+User.monthlystudytime = relationship("MonthlyStudyTime", order_by=MonthlyStudyTime.timestamp, back_populates="user")
 
 if __name__ == '__main__':
     utilities.recreate_db(Base)
