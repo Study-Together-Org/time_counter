@@ -51,7 +51,7 @@ class DailyStudyTime(Base):
     study_time = Column(FLOAT, nullable=False)
     rank = Column(INTEGER, nullable=False)
 
-    user = relationship("User", back_populates="dailyhours")
+    user = relationship("User", back_populates="dailystudytime")
 
 
 class WeeklyStudyTime(Base):
@@ -63,7 +63,7 @@ class WeeklyStudyTime(Base):
     study_time = Column(FLOAT, nullable=False)
     rank = Column(INTEGER, nullable=False)
 
-    user = relationship("User", back_populates="weeklyhours")
+    user = relationship("User", back_populates="weeklystudytime")
 
 
 class MonthlyStudyTime(Base):
@@ -75,7 +75,7 @@ class MonthlyStudyTime(Base):
     study_time = Column(FLOAT, nullable=False)
     rank = Column(INTEGER, nullable=False)
 
-    user = relationship("User", back_populates="monthlyhours")
+    user = relationship("User", back_populates="monthlystudytime")
 
 
 # This must be in global scope for correct models
