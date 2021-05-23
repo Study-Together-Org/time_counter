@@ -1,0 +1,5 @@
+*.env filter=git-crypt diff=git-crypt
+example_dev.env !filter=git-crypt !diff=git-crypt
+
+# To prevent encrypting the .gitattributes file itself
+.gitattributes !filter !diff

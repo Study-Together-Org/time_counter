@@ -1,8 +1,4 @@
-* redis memory management
-  
-* use git crypt
-* Test
-    * (optional) Chaos engineering
-* bootstrap script for Ubuntu installation
+* set up docker
     * Set up Redis firewall and auth, restart reload
-* script to restart restarter
+* a startup script to restart restarter
+
