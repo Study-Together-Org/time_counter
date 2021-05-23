@@ -9,9 +9,9 @@ cffi==1.14.4
 chardet==3.0.4
 dateparser==1.0.0
 decorator==4.4.2
-discord.py==1.5.1
+discord.py==1.7.2
 distest==0.4.9
-Faker==5.0.2
+Faker==8.2.1
 freezegun==1.0.0
 fuzzywuzzy==0.18.0
 google-auth==1.24.0
