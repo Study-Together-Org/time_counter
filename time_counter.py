@@ -391,7 +391,7 @@ class Study(commands.Cog):
         By default the ranking is monthly, you can specify a start time (in the last 24 hours).
         Currently, the available starting points are hours. If we include half past hours, '~lb 10:14' will become '~lb 10:30'
 
-        To specify a starting time, use any of the following formats "%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"
+        To specify a starting time, use any of the following formats mentioned in "-help me"
         examples: '~lb 9' or '~lb 9pm'
 
         To specify a page, specify the page number where each page has 10 members; use '-' as a placeholder to get monthly ranking
@@ -460,15 +460,17 @@ class Study(commands.Cog):
     async def me(self, ctx, timepoint=None, user: discord.Member = None):
         """
         Displays statistics for your studytime (use '~help me' to see more)
-        By default the daily time is last 24 hours, but you can specify a start time (in the last 24 hours)
-        Currently, the available starting points are hours. If we include half past hours, '~me 10:14' will become '~me 10:30'
+        By default the daily time is last 24 hours, but you can specify a starting hour (in the last 24 hours)
 
-        To specify a starting time, use any of the following formats "%H:%M", "%H:%m", "%h:%M", "%h:%m", "%H", "%h"
-        examples: '~me 9' or '~me 9pm'
+        To specify a starting time, use any of the following formats "%Ham, "%Hpm", "%hAM", "%hPM", "%H", "%h"
+        examples: '-me 9', '-me 9pm', '-me 1pm', but not '-me 13pm' or '-me 13:00'
+
+        or even natural languages (with arabic numerals)
+        examples: '12 hour ago' or '10小时前'
 
         To specify a user, use
-        examples: '~me 9 @chooseyourfriend' or '~me - @chooseyourfriend'
-        
+        examples: '-me 9 @chooseyourfriend' or '-me - @chooseyourfriend'
+
         Note the weekly time resets on Monday GMT+0 5pm and the monthly time 1st day of the month 5pm
         """
 
