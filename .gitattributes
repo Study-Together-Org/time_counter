@@ -3,4 +3,3 @@
 
 # To prevent encrypting the .gitattributes file itself
 .gitattributes !filter !diff
-
