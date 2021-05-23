@@ -1,0 +1,4 @@
+test-secret.txt filter=git-crypt diff=git-crypt
+# To prevent encrypting the .gitattributes file itself
+.gitattributes !filter !diff
+
