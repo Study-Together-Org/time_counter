@@ -281,8 +281,6 @@ class Study(commands.Cog):
         if last_record and last_record.category == "start channel":
             self.handle_in_session(user_id, reset=False)
 
-        await self.update_streak(user_id)
-
     @tasks.loop(seconds=int(os.getenv("heartbeat_interval_sec")))
     async def make_heartbeat(self):
         self.heartbeat_logger.info(f"{utilities.get_time()} alive")
@@ -366,7 +364,10 @@ class Study(commands.Cog):
         if not user:
             user = ctx.author
 
+        user_id = user.id
         await self.update_stats(user)
+        await self.update_streak(user_id)
+
         cur_role, next_role, time_to_next_role = await self.update_roles(user)
 
         text = f"""
@@ -411,7 +412,9 @@ class Study(commands.Cog):
         if not user:
             user = ctx.author
 
+        user_id = user.id
         await self.update_stats(user)
+        await self.update_streak(user_id)
 
         if timepoint and timepoint != "-":
             timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(ctx, user, timepoint)
@@ -478,8 +481,10 @@ class Study(commands.Cog):
         """
         if not user:
             user = ctx.author
+
         user_id = user.id
         await self.update_stats(user)
+        await self.update_streak(user_id)
 
         timepoint, display_timezone, display_timepoint = await utilities.get_user_timeinfo(ctx, user, timepoint)
         rank_categories = utilities.get_rank_categories()
