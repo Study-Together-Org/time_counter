@@ -280,7 +280,8 @@ class Study(commands.Cog):
 
         if last_record and last_record.category == "start channel":
             self.handle_in_session(user_id, reset=False)
-            await self.update_streak(user_id)
+
+        await self.update_streak(user_id)
 
     @tasks.loop(seconds=int(os.getenv("heartbeat_interval_sec")))
     async def make_heartbeat(self):
@@ -336,10 +337,7 @@ class Study(commands.Cog):
             if before.channel:
                 self.handle_in_session(user_id, reset=True)
 
-            # Only both with streak update on channel change
-            # Assumption - a user won't be in a monitored channel with no voice_state_update for more than a day + the grace period (see update_streak)
-            await self.update_streak(user_id)
-
+        await self.update_streak(user_id)
         await self.update_roles(member)
 
     @commands.Cog.listener()
