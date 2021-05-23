@@ -5,8 +5,6 @@ timezone
 
 # miscellaneous
 *.idea
-*.env
-!example_dev.env
 
 *.lprof
 *.rdb
