@@ -250,22 +250,22 @@ class Study(commands.Cog):
         today = utilities.get_day_start()
         cur_studytime = await utilities.get_redis_score(self.redis_client, "daily_" + str(today), user_id)
         threshold = utilities.config["business"]["min_streak_time"]
+        yesterday = today - timedelta(days=1)
+        yesterday_str = "daily_" + str(yesterday)
+        to_add = False
 
         # A user must study for some minimal time to be considered having studied in a time interval
         if cur_studytime >= threshold:
-            # We use a auto-expiring key to implement a fluid streak system - as long as user has studied in the past 24 hours, today the user will have streak
+            to_add = True
+            # We use an auto-expiring key to implement a fluid streak system - as long as user has studied in the past 24 hours, today the user will have streak
             streak_name = "has_streak_today_" + str(user_id)
-
             if not self.redis_client.exists(streak_name):
-                yesterday = today - timedelta(days=1)
-                yesterday_str = "daily_" + str(yesterday)
+                self.redis_client.set(streak_name, 1)
+                self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
 
-                # assuming there are redis logs
-                reset = (await utilities.get_redis_score(self.redis_client, yesterday_str, user_id)) < threshold
-                await self.add_streak(user_id, reset)
-
-            self.redis_client.set(streak_name, 1)
-            self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
+        reset = (await utilities.get_redis_score(self.redis_client, yesterday_str, user_id)) < threshold
+        if to_add or reset:
+            await self.add_streak(user_id, reset)
 
     async def update_stats(self, user):
         # Only update stats if a user is in a monitored channel when issuing the command
