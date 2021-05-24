@@ -152,6 +152,6 @@ async def test_in_session(interface):
 # start id_2
 
 if __name__ == "__main__":
-    run_command_line_bot(target=int(os.getenv("bot_id")), token=os.getenv("bot_token"),
+    run_command_line_bot(target=int(os.getenv("bot_id")), token=os.getenv("test_bot_token"),
                          channel_id=int(os.getenv("test_channel_id")), tests="all",
                          stats=True, timeout=5, collector=test_collector)
