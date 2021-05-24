@@ -1,6 +1,5 @@
 import os
 
-from dotenv import load_dotenv
 from sqlalchemy import ForeignKey, Column, String
 from sqlalchemy.dialects.mysql import DATETIME, INTEGER, BIGINT, FLOAT
 from sqlalchemy.ext.declarative import declarative_base
@@ -8,11 +7,9 @@ from sqlalchemy.orm import relationship
 
 import utilities
 
-load_dotenv("dev.env")
-
 database_name = os.getenv("database")
-varchar_length = int(os.getenv("varchar_length"))
-DATETIME = DATETIME(fsp=int(os.getenv("time_fsp")))
+varchar_length = utilities.config["varchar_length"]
+DATETIME = DATETIME(fsp=utilities.config["time_fsp"])
 Base = declarative_base()
 
 action_categories = [

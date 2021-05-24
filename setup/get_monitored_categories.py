@@ -7,11 +7,11 @@ from dotenv import load_dotenv
 
 import utilities
 
-load_dotenv("dev.env")
+load_dotenv("../dev.env")
 
-client = commands.Bot(command_prefix=os.getenv("prefix"), intents=Intents.all())
+client = commands.Bot(command_prefix=utilities.config["prefixes"], intents=Intents.all())
 
-with open("config.hjson") as f:
+with open("../config.hjson") as f:
     config = hjson.load(f)
 
 
@@ -24,10 +24,10 @@ async def on_ready():
         if category.name[0] == "🔊" or category.name in ["staff", "STAFF"]:
             monitored_categories[category.name] = category.id
 
-    key_name = ("test_" if os.getenv("mode") == "test" else "") + "monitored_categories"
+    key_name = utilities.config["monitored_categories"]
     config[key_name] = monitored_categories
 
-    with open("config.hjson", "w") as f:
+    with open("../config.hjson", "w") as f:
         hjson.dump(config, f)
 
     await client.logout()

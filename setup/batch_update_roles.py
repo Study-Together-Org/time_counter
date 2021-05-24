@@ -11,9 +11,10 @@ from sqlalchemy.orm import sessionmaker
 import utilities
 from models import Action, User
 
+print("WARNING: some configuration values have been placed in slightly different files; light fixes should be needed")
 logging.basicConfig(level=logging.INFO)
 
-load_dotenv("dev.env")
+load_dotenv("../dev.env")
 
 
 # create discord bot Cog that will
@@ -47,10 +48,10 @@ class Study(commands.Cog):
             self.guild = self.bot.get_guild(utilities.get_guildID())
 
         # get the relevant role names from the config file based on whether or not we are in test mode
-        self.role_names = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "study_roles"]
+        self.role_names = utilities.config[("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "study_roles"]
         # supporter_role is a role for people who have denoted money
         self.supporter_role = utilities.config["other_roles"][
-            ("test_" if os.getenv("mode") == "test" else "") + "supporter"]
+            ("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "supporter"]
 
 
     @commands.Cog.listener()
@@ -200,7 +201,7 @@ def setup(bot):
 if __name__ == '__main__':
     # Potentially accept multiple prefixes
     # TODO move these prefixes to config.hjson
-    prefix = os.getenv("prefix")
+    prefix = utilities.config["prefixes"]
     prefix_2 = os.getenv("prefix_2")
     prefix_3 = os.getenv("prefix_3")
     prefixes = [prefix, prefix_2, prefix_3] if prefix_2 else prefix

@@ -5,19 +5,20 @@ from distest import TestCollector
 from distest import run_command_line_bot
 from discord import Embed
 from sqlalchemy.orm import sessionmaker
-from models import Action, User
+from setup.models import Action
 import utilities
 
 test_collector = TestCollector()
 bot = None
 guild = None
 bot_id = None
-time_to_stay = 3600 / (10 ** int(os.getenv("test_display_num_decimal")))
+time_to_stay = 3600 / (10 ** int(os.getenv("display_num_decimal")))
 db_tolerance = timedelta(seconds=.2)
 redis_tolerance = 3.6 * 1.5
 discord_delay = 2  # discord api, when slow, could take 5 seconds to send messages
 past_time = "2pm"  # specify some timepoint for commands that support it
-me_command = f"{os.getenv('prefix')}me {past_time}"
+prefix = utilities.config["prefixes"][0]
+me_command = f"{prefix}me {past_time}"
 timepoint = None
 
 redis_client = utilities.get_redis_client()
@@ -70,25 +71,25 @@ async def test_start_end_channel_incr(interface):
 @test_collector()
 async def test_p(interface):
     embed = Embed(title=utilities.config["embed_titles"]["p"])
-    await interface.assert_reply_embed_equals(os.getenv("prefix") + "p", embed, attributes_to_check=["title"])
+    await interface.assert_reply_embed_equals(prefix + "p", embed, attributes_to_check=["title"])
 
 
 @test_collector()
 async def test_lb(interface):
     embed = Embed(title=f'{utilities.config["embed_titles"]["lb"]} ({utilities.get_month()})')
-    await interface.assert_reply_embed_equals(os.getenv("prefix") + "lb", embed, attributes_to_check=["title"])
+    await interface.assert_reply_embed_equals(prefix + "lb", embed, attributes_to_check=["title"])
 
 
 @test_collector()
 async def test_lb_with_page(interface):
     embed = Embed(title=f'{utilities.config["embed_titles"]["lb"]} ({utilities.get_month()})')
-    await interface.assert_reply_embed_equals(os.getenv("prefix") + "lb - 4000000", embed, attributes_to_check=["title"])
+    await interface.assert_reply_embed_equals(prefix + "lb - 4000000", embed, attributes_to_check=["title"])
 
 
 @test_collector()
 async def test_me(interface):
     embed = Embed(title=utilities.config["embed_titles"]["me"])
-    await interface.assert_reply_embed_equals(os.getenv("prefix") + "me", embed, attributes_to_check=["title"])
+    await interface.assert_reply_embed_equals(prefix + "me", embed, attributes_to_check=["title"])
     utilities.sleep(discord_delay)
 
 
@@ -151,6 +152,6 @@ async def test_in_session(interface):
 # start id_2
 
 if __name__ == "__main__":
-    run_command_line_bot(target=int(os.getenv("test_bot_id")), token=os.getenv("test_bot_token"),
+    run_command_line_bot(target=int(os.getenv("bot_id")), token=os.getenv("bot_token"),
                          channel_id=int(os.getenv("test_channel_id")), tests="all",
                          stats=True, timeout=5, collector=test_collector)

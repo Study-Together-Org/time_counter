@@ -16,19 +16,20 @@ from faker import Faker
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-load_dotenv("dev.env")
+# scripts that import this one will assume the following statement is run
+load_dotenv(f"{os.getenv('STUDY_TOGETHER_MODE')}.env")
 
-Faker.seed(int(os.getenv("seed")))
+with open("config.hjson") as f:
+    config = hjson.load(f)
+
+Faker.seed(config["seed"])
 fake = Faker()
 
 num_uuid = shortuuid.ShortUUID()
 num_uuid.set_alphabet("0123456789")  # uuid that only has numbers
 back_range = 61
 
-with open("config.hjson") as f:
-    config = hjson.load(f)
-
-key_name = ("test_" if os.getenv("mode") == "test" else "") + "study_roles"
+key_name = ("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "study_roles"
 role_settings = config[key_name]
 role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) for role_name, role_info in
                             role_settings.items()}
@@ -71,8 +72,7 @@ def get_logger(job_name, filename):
 
 
 def get_guildID():
-    guildID_key_name = ("test_" if os.getenv("mode") == "test" else "") + "guildID"
-    guildID = int(os.getenv(guildID_key_name))
+    guildID = int(os.getenv("guildID"))
     return guildID
 
 
@@ -91,8 +91,7 @@ def get_engine(echo=False):
 
 
 def get_timezone_session():
-    db_var_name = ("test_" if os.getenv("mode") == "test" else "") + "timezone_db"
-    engine = create_engine(os.getenv(db_var_name))
+    engine = create_engine(os.getenv("timezone_db"))
     session = sessionmaker(bind=engine)()
     return session
 
@@ -216,15 +215,14 @@ async def get_user_timeinfo(ctx, user, timepoint):
 
     display_timepoint = dateparser.parse(timepoint).replace(
         tzinfo=ZoneInfo(config["business"]["timezone"]))
-    display_timepoint = display_timepoint.astimezone(zone_obj).strftime(os.getenv("datetime_format").split(".")[0])
+    display_timepoint = display_timepoint.astimezone(zone_obj).strftime(config["datetime_format"].split(".")[0])
 
     return "daily_" + timepoint, user_timezone, display_timepoint
 
 
 def round_num(num, ndigits=None):
     if not ndigits:
-        ndigits_var_name = ("test_" if os.getenv("mode") == "test" else "") + "display_num_decimal"
-        ndigits = int(os.getenv(ndigits_var_name))
+        ndigits = int(os.getenv("display_num_decimal"))
 
     return round(num, ndigits=ndigits)
 
@@ -349,7 +347,7 @@ def get_last_line():
 
 def get_last_time(line):
     last_line = " ".join(line.split()[:2])
-    return datetime.strptime(last_line, os.getenv("datetime_format"))
+    return datetime.strptime(last_line, config["datetime_format"])
 
 
 def kill_last_process(line):
@@ -453,4 +451,4 @@ def commit_or_rollback(session):
 
 
 def get_role_id(name):
-    return config["other_roles"][("test_" if os.getenv("mode") == "test" else "") + name]
+    return config["other_roles"][("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + name]

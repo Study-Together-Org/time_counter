@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 import argparse
-import os
 from datetime import datetime
 
-from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
 
 import utilities
-from models import DailyStudyTime
-
-load_dotenv("dev.env")
+from setup.models import DailyStudyTime
 
 mode = "development"
 
@@ -22,7 +18,7 @@ args = parser.parse_args()
 
 # get sorted_set_datetime
 sorted_set_name = f"daily_{args.date} {args.time}"
-sorted_set_datetime = datetime.strptime(sorted_set_name, f"daily_{os.getenv('datetime_format').split('.')[0]}")
+sorted_set_datetime = datetime.strptime(sorted_set_name, f"daily_{utilities.config['datetime_format'].split('.')[0]}")
 
 # get engine
 engine = utilities.get_engine()

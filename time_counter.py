@@ -1,19 +1,16 @@
 import asyncio
 import os
-import signal
 from datetime import timedelta
 
 import discord
 from discord import Intents
 from discord.ext import commands, tasks
-from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
 
 import utilities
-from models import Action, User
+from setup.models import Action, User
 
-load_dotenv("dev.env")
-monitored_key_name = ("test_" if os.getenv("mode") == "test" else "") + "monitored_categories"
+monitored_key_name = ("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "monitored_categories"
 monitored_categories = utilities.config[monitored_key_name].values()
 
 
@@ -35,9 +32,9 @@ class Study(commands.Cog):
         self.role_name_to_info = None
         self.supporter_role = None
 
-        self.command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
+        self.command_channels = utilities.config[("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "command_channels"]
         self.announcement_channel = utilities.config[
-            ("test_" if os.getenv("mode") == "test" else "") + "announcement_channel"]
+            ("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "announcement_channel"]
         # TODO fix when files not existent
         self.data_change_logger = utilities.get_logger("study_executor_data_change", "data_change.log")
         self.time_counter_logger = utilities.get_logger("study_executor_time_counter", "discord.log")
@@ -63,15 +60,15 @@ class Study(commands.Cog):
 
         if not self.guild:
             self.guild = self.bot.get_guild(utilities.get_guildID())
-        self.role_name_to_info = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "study_roles"]
+        self.role_name_to_info = utilities.config[("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "study_roles"]
         self.role_name_to_obj = {role.name: role for role in self.guild.roles}
         # supporter_role is a role for people who have denoted money
         self.supporter_role = utilities.config["other_roles"][
-            ("test_" if os.getenv("mode") == "test" else "") + "supporter"]
+            ("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "supporter"]
 
     async def get_discord_name(self, user_id):
         # In test mode, we might have fake data with fake ids. It is necessary to generate fake user info as well.
-        if os.getenv("mode") == "test":
+        if os.getenv("STUDY_TOGETHER_MODE") == "dev":
             for special_id in ["tester_human_discord_user_id", "tester_bot_token_discord_user_id"]:
                 if user_id == os.getenv(special_id):
                     return special_id
@@ -269,7 +266,7 @@ class Study(commands.Cog):
 
     async def update_stats(self, user):
         # Only update stats if a user is in a monitored channel when issuing the command
-        if os.getenv("mode") != "test" and user.bot:
+        if os.getenv("STUDY_TOGETHER_MODE") != "dev" and user.bot:
             return
 
         if not user.bot and (not user.voice or user.voice.channel.category.id not in monitored_categories):
@@ -290,7 +287,7 @@ class Study(commands.Cog):
         """
         This is just a workaround for the distest library to work (using bots to automatically test other bots; see test_bots.py)
         """
-        if os.getenv("mode") == "test" and message.author.bot:
+        if os.getenv("STUDY_TOGETHER_MODE") == "dev" and message.author.bot:
             ctx = await self.bot.get_context(message)
             await self.bot.invoke(ctx)
 
@@ -307,7 +304,7 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        if os.getenv("mode") != "test" and member.bot:
+        if os.getenv("STUDY_TOGETHER_MODE") != "dev" and member.bot:
             return
 
         await self.on_member_join(member)
@@ -436,7 +433,7 @@ class Study(commands.Cog):
             start = end - 10
             leaderboard = await self.get_info_from_leaderboard(timepoint, start, end)
 
-        num_dec = int(os.getenv(("test_" if os.getenv("mode") == "test" else "") + "display_num_decimal"))
+        num_dec = int(os.getenv("display_num_decimal"))
         width = 5 + num_dec
 
         for person in leaderboard:
@@ -501,7 +498,7 @@ class Study(commands.Cog):
         currentStreak = str(currentStreak) + " day" + ("s" if currentStreak != 1 else "")
         longestStreak = str(longestStreak) + " day" + ("s" if longestStreak != 1 else "")
 
-        num_dec = int(os.getenv(("test_" if os.getenv("mode") == "test" else "") + "display_num_decimal"))
+        num_dec = int(os.getenv("display_num_decimal"))
         width = 5 + num_dec
 
         text = f"""
@@ -602,7 +599,7 @@ def setup(bot):
         Only respond in certain channels to avoid spamming
         """
 
-        command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
+        command_channels = utilities.config[("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "command_channels"]
 
         if ctx.channel.id in command_channels:
             return True
@@ -620,9 +617,9 @@ def setup(bot):
 class CustomBot(commands.Bot):
     # Overwrite default Bot to get signal handling power
     async def close(self):
-        command_channels = utilities.config[("test_" if os.getenv("mode") == "test" else "") + "command_channels"]
+        command_channels = utilities.config[("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "command_channels"]
         announcement_channel = utilities.config[
-            ("test_" if os.getenv("mode") == "test" else "") + "announcement_channel"]
+            ("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "announcement_channel"]
         msg = f"\n\nSome staff member just restarted me.\nDetails (about new features? :heart_eyes_cat:) might be posted in <#{announcement_channel}>).\n**I will send a message here when I am back again (soon).** :wave:"
 
         for channel_id in command_channels:
@@ -634,13 +631,7 @@ class CustomBot(commands.Bot):
 
 
 if __name__ == '__main__':
-    # Potentially accept multiple prefixes
-    # TODO move these prefixes to config.hjson
-    prefix = os.getenv("prefix")
-    prefix_2 = os.getenv("prefix_2")
-    prefix_3 = os.getenv("prefix_3")
-    prefixes = [prefix, prefix_2, prefix_3] if prefix_2 else prefix
-
+    prefixes = utilities.config["prefixes"]
     client = CustomBot(command_prefix=prefixes, intents=Intents.all(),
                        description="Your study statistics and rankings")
     client.load_extension('time_counter')

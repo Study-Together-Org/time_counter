@@ -3,13 +3,14 @@ import random
 
 import numpy as np
 import pandas as pd
+from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
 
 import models
 from models import *
 
-load_dotenv("dev.env")
-seed = int(os.getenv("seed"))
+load_dotenv("../dev.env")
+seed = int(utilities.config["seed"])
 random.seed(seed)
 np.random.seed(seed)
 database_name = os.getenv("database")
@@ -84,7 +85,7 @@ def generate_sorted_set():
         redis_client.zadd(sorted_set_name, to_insert)
 
         if sorted_set_name == utilities.get_rank_categories()["monthly"]:
-            if os.getenv("mode") == "test":
+            if os.getenv("STUDY_TOGETHER_MODE") == "dev":
                 for user_id in to_insert:
                     to_insert[user_id] += utilities.generate_random_number(length=3)[0]
 

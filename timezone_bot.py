@@ -1,21 +1,18 @@
 # Original author: https://github.com/JakeStanger/Discord-Friend-Timezones/tree/6eb9537bc9c9e434549c001c1859635c82333b66
 
 import os
+from datetime import datetime
+
 import discord
 import pytz
-from dotenv import load_dotenv
-from datetime import datetime
 from discord.ext import commands
 from fuzzywuzzy import process
-from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy import Column, String
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-import json
+
 import utilities
 
-load_dotenv("dev.env")
 session = utilities.get_timezone_session()
-
 Base = declarative_base()
 
 
@@ -49,7 +46,7 @@ You may get it from https://gist.github.com/Zackhardtoname/c2a01465ac25eec17038c
 3. Set it with .tzset one_of_the_timezones (example: .tzset America/New_York)
 (4. Check it with .tzget and .time)
 """
-timezone_bot = commands.Bot(command_prefix=os.getenv('timezone_prefix'), description=description)
+timezone_bot = commands.Bot(command_prefix=utilities.config['timezone_prefix'], description=description)
 
 
 @timezone_bot.command(name='tzset')

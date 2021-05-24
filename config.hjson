@@ -1,4 +1,15 @@
 {
+  varchar_length: 32,
+  time_fsp: 6,
+  seed: 42,
+  datetime_format: "%Y-%m-%d %H:%M:%S.%f",
+  command_datetime_format: "%H:%M",
+  prefixes:[
+    "!"
+    "~"
+    "-"
+  ],
+  timezone_prefix: ".",
   study_roles:
   {
     "entry (30m-3h)":
