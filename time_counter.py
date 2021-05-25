@@ -10,8 +10,8 @@ from sqlalchemy.orm import sessionmaker
 import utilities
 from setup.models import Action, User
 
-monitored_key_name = ("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "monitored_categories"
-monitored_categories = utilities.config[monitored_key_name].values()
+# We don't user the keys (category names, but having them there as update as possible could help with debugging)
+monitored_categories = utilities.config["monitored_categories"].values()
 
 
 def check_categories(channel):
@@ -32,9 +32,8 @@ class Study(commands.Cog):
         self.role_name_to_info = None
         self.supporter_role = None
 
-        self.command_channels = utilities.config[("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "command_channels"]
-        self.announcement_channel = utilities.config[
-            ("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "announcement_channel"]
+        self.command_channels = utilities.config["command_channels"]
+        self.announcement_channel = utilities.config["announcement_channel"]
         # TODO fix when files not existent
         self.data_change_logger = utilities.get_logger("study_executor_data_change", "data_change.log")
         self.time_counter_logger = utilities.get_logger("study_executor_time_counter", "discord.log")
@@ -60,11 +59,10 @@ class Study(commands.Cog):
 
         if not self.guild:
             self.guild = self.bot.get_guild(utilities.get_guildID())
-        self.role_name_to_info = utilities.config[("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "study_roles"]
+        self.role_name_to_info = utilities.config["study_roles"]
         self.role_name_to_obj = {role.name: role for role in self.guild.roles}
         # supporter_role is a role for people who have denoted money
-        self.supporter_role = utilities.config["other_roles"][
-            ("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "supporter"]
+        self.supporter_role = utilities.config["other_roles"]["supporter"]
 
     async def get_discord_name(self, user_id):
         # In test mode, we might have fake data with fake ids. It is necessary to generate fake user info as well.
@@ -599,7 +597,7 @@ def setup(bot):
         Only respond in certain channels to avoid spamming
         """
 
-        command_channels = utilities.config[("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "command_channels"]
+        command_channels = utilities.config["command_channels"]
 
         if ctx.channel.id in command_channels:
             return True
@@ -617,9 +615,8 @@ def setup(bot):
 class CustomBot(commands.Bot):
     # Overwrite default Bot to get signal handling power
     async def close(self):
-        command_channels = utilities.config[("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "command_channels"]
-        announcement_channel = utilities.config[
-            ("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "announcement_channel"]
+        command_channels = utilities.config["command_channels"]
+        announcement_channel = utilities.config["announcement_channel"]
         msg = f"\n\nSome staff member just restarted me.\nDetails (about new features? :heart_eyes_cat:) might be posted in <#{announcement_channel}>).\n**I will send a message here when I am back again (soon).** :wave:"
 
         for channel_id in command_channels:

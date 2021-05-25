@@ -19,7 +19,7 @@ from sqlalchemy.orm import sessionmaker
 # scripts that import this one will assume the following statement is run
 load_dotenv(f"{os.getenv('STUDY_TOGETHER_MODE')}.env")
 
-with open("config.hjson") as f:
+with open(f"{os.getenv('STUDY_TOGETHER_MODE')}_config.hjson") as f:
     config = hjson.load(f)
 
 Faker.seed(config["seed"])
@@ -29,8 +29,7 @@ num_uuid = shortuuid.ShortUUID()
 num_uuid.set_alphabet("0123456789")  # uuid that only has numbers
 back_range = 61
 
-key_name = ("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "study_roles"
-role_settings = config[key_name]
+role_settings = config["study_roles"]
 role_name_to_begin_hours = {role_name: float(role_info['hours'].split("-")[0]) for role_name, role_info in
                             role_settings.items()}
 role_names = list(role_settings.keys())
@@ -451,4 +450,4 @@ def commit_or_rollback(session):
 
 
 def get_role_id(name):
-    return config["other_roles"][("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + name]
+    return config["other_roles"][name]

@@ -48,17 +48,14 @@ class Study(commands.Cog):
             self.guild = self.bot.get_guild(utilities.get_guildID())
 
         # get the relevant role names from the config file based on whether or not we are in test mode
-        self.role_names = utilities.config[("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "study_roles"]
+        self.role_names = utilities.config["study_roles"]
         # supporter_role is a role for people who have denoted money
-        self.supporter_role = utilities.config["other_roles"][
-            ("test_" if os.getenv("STUDY_TOGETHER_MODE") == "dev" else "") + "supporter"]
-
+        self.supporter_role = utilities.config["other_roles"]["supporter"]
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, exception):
         # this bot doesn't respond to commands
         pass
-
 
     @commands.Cog.listener()
     async def on_ready(self):

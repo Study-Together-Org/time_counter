@@ -1,0 +1,140 @@
+{
+  varchar_length: 32,
+  time_fsp: 6,
+  seed: 42,
+  datetime_format: "%Y-%m-%d %H:%M:%S.%f",
+  command_datetime_format: "%H:%M",
+  prefixes:[
+    "!"
+    "~"
+    "-"
+  ],
+  timezone_prefix: ".",
+  other_roles:
+  {
+    supporter: 685967088170696715
+    staff: 706574316870828063,
+    dev: 715501028791025734,
+  }
+  embed_titles:
+  {
+    p: ":coffee: Personal Rank Statistics"
+    lb: 🧗 Study Leaderboard
+    me: "Personal Study Statistics"
+  }
+  business:
+  {
+    min_streak_time: 1
+    timezone: GMT+0
+    update_time: 17
+  }
+  announcement_channel: 666199608501731328,
+  command_channels:
+  [
+    666352633342197760
+    695434541233602621
+    715581625425068053
+    699007476686651613
+    674590052390535168
+    706572222466359358
+    738091719073202327
+  ],
+  monitored_categories:
+  {
+    "\ud83d\udd0a 25 minute sessions": 703232176757669979
+    "\ud83d\udd0a 50 minute sessions": 703234892267388989
+    "\ud83d\udd0a screenshare/camera": 713066910777999400
+    "\ud83d\udd0a custom time (self-study)": 595999872222756889
+    "\ud83d\udd0a duo channels 1": 672436628702363648
+    "\ud83d\udd0a duo channels 2": 712995868814606387
+    "\ud83d\udd0a duo channels 3": 778628160098271272
+    "\ud83d\udd0a duo channels 4": 783355699861651476
+    "\ud83d\udd0a duo channels 5": 784524787736248420
+    "\ud83d\udd0a trio channels": 763817076561150012
+    "\ud83d\udd0a quintet channels": 763817554610225202
+    "\ud83d\udd0a group studying 1": 834880241863622727
+    "\ud83d\udd0a group studying 2": 834880336214360134
+    "\ud83d\udd0a group studying 3": 712997079596924948
+    "\ud83d\udd0a large group studying": 764623572613201980
+  },
+  study_roles:
+  {
+    "entry (30m-3h)":
+    {
+      hours: 0.5-3
+      id: 671196458501931019
+      name: entry (30m-3h)
+      mention: <@&671196458501931019>
+    }
+    "beginner (3-6h)":
+    {
+      hours: 3-6
+      id: 666301176668618773
+      name: beginner (3-6h)
+      mention: <@&666301176668618773>
+    }
+    "intermediate (6-10h)":
+    {
+      hours: 6-10
+      id: 666301854996627477
+      name: intermediate (6-10h)
+      mention: <@&666301854996627477>
+    }
+    "proficient (10-20h)":
+    {
+      hours: 10-20
+      id: 666302285177159719
+      name: proficient (10-20h)
+      mention: <@&666302285177159719>
+    }
+    "advanced (20-40h)":
+    {
+      hours: 20-40
+      id: 666302147176169502
+      name: advanced (20-40h)
+      mention: <@&666302147176169502>
+    }
+    "expert (40-60h)":
+    {
+      hours: 40-60
+      id: 666302227484508170
+      name: expert (40-60h)
+      mention: <@&666302227484508170>
+    }
+    "a+ student (60-80h)":
+    {
+      hours: 60-80
+      id: 666302237634461696
+      name: a+ student (60-80h)
+      mention: <@&666302237634461696>
+    }
+    "master (80-120h)":
+    {
+      hours: 80-120
+      id: 671175974691536911
+      name: master (80-120h)
+      mention: <@&671175974691536911>
+    }
+    "grandmaster (120-160h)":
+    {
+      hours: 120-160
+      id: 672197498323861532
+      name: grandmaster (120-160h)
+      mention: <@&672197498323861532>
+    }
+    "study-machine (160-220h)":
+    {
+      hours: 160-220
+      id: 674297907150716959
+      name: study-machine (160-220h)
+      mention: <@&674297907150716959>
+    }
+    "study master (220-350h+)":
+    {
+      hours: 220-350
+      id: 676158518956654612
+      name: study master (220-350h+)
+      mention: <@&676158518956654612>
+    }
+  }
+}
