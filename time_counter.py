@@ -251,10 +251,10 @@ class Study(commands.Cog):
 
         # A user must study for some minimal time to be considered having studied in a time interval
         if cur_studytime >= threshold:
-            to_add = True
             # We use an auto-expiring key to implement a fluid streak system - as long as user has studied in the past 24 hours, today the user will have streak
             streak_name = "has_streak_today_" + str(user_id)
             if not self.redis_client.exists(streak_name):
+                to_add = True
                 self.redis_client.set(streak_name, 1)
                 self.redis_client.expireat(streak_name, utilities.get_tomorrow_start())
 
