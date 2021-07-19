@@ -4,7 +4,7 @@ import pandas as pd
 
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 from sqlalchemy.orm import sessionmaker
-from setup.models import *
+from models import *
 
 load_dotenv("../dev.env")
 database_name = os.getenv("database")

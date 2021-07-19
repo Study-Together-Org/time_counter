@@ -5,7 +5,7 @@ from distest import TestCollector
 from distest import run_command_line_bot
 from discord import Embed
 from sqlalchemy.orm import sessionmaker
-from setup.models import Action
+from models import Action
 import utilities
 
 test_collector = TestCollector()

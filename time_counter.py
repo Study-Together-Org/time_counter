@@ -8,7 +8,7 @@ from discord.ext import commands, tasks
 from sqlalchemy.orm import sessionmaker
 
 import utilities
-from setup.models import Action, User
+from models import Action, User
 
 # We don't user the keys (category names, but having them there as update as possible could help with debugging)
 monitored_categories = utilities.config["monitored_categories"].values()

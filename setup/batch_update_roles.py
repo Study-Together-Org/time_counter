@@ -4,12 +4,12 @@ import logging
 
 from functools import partial
 from discord import Intents
-from discord.ext import commands, tasks
+from discord.ext import commands
 from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
 
 import utilities
-from models import Action, User
+from models import User
 
 print("WARNING: some configuration values have been placed in slightly different files; light fixes should be needed")
 logging.basicConfig(level=logging.INFO)

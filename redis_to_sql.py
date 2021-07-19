@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy.orm import sessionmaker
 
 import utilities
-from setup.models import DailyStudyTime
+from models import DailyStudyTime
 
 mode = "development"
 
