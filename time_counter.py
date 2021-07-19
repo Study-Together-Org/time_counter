@@ -37,7 +37,6 @@ class Study(commands.Cog):
         # TODO fix when files not existent
         self.data_change_logger = utilities.get_logger("study_executor_data_change", "data_change.log")
         self.time_counter_logger = utilities.get_logger("study_executor_time_counter", "discord.log")
-        self.heartbeat_logger = utilities.get_logger("study_executor_heartbeat", "heartbeat.log")
         self.redis_client = utilities.get_redis_client()
         engine = utilities.get_engine()
         Session = sessionmaker(bind=engine)
@@ -275,10 +274,6 @@ class Study(commands.Cog):
 
         if last_record and last_record.category == "start channel":
             self.handle_in_session(user_id, reset=False)
-
-    @tasks.loop(seconds=int(os.getenv("heartbeat_interval_sec")))
-    async def make_heartbeat(self):
-        self.heartbeat_logger.info(f"{utilities.get_time()} alive")
 
     @commands.Cog.listener()
     async def on_message(self, message):
