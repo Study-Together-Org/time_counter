@@ -49,9 +49,6 @@ class Study(commands.Cog):
         if not self.bot.is_ready():
             await self.bot.wait_until_ready()
 
-        while not self.ready_to_serve:
-            await asyncio.sleep(5)
-
     async def fetch(self):
         """
         Get discord server objects and info from its api
@@ -303,7 +300,7 @@ class Study(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        if os.getenv("STUDY_TOGETHER_MODE") != "dev" and member.bot:
+        if not self.ready_to_serve or (os.getenv("STUDY_TOGETHER_MODE") != "dev" and member.bot):
             return
 
         await self.on_member_join(member)
@@ -354,9 +351,10 @@ class Study(commands.Cog):
         To specify a user
         examples: '~p @chooseyourfriend'
         """
+        if not self.ready_to_serve:
+            return
 
         # if the user has not specified someone else
-
         if not user:
             user = ctx.author
 
@@ -401,6 +399,9 @@ class Study(commands.Cog):
 
         Note the weekly time resets on Monday GMT+0 5pm and the monthly time 1st day of the month 5pm
         """
+        if not self.ready_to_serve:
+            return
+
         # TODO implement all-time
         text = ""
 
@@ -477,6 +478,9 @@ class Study(commands.Cog):
         # no user input on command, input on DB: past 24 hours - display user time
         # no user input on command, no input on DB: past 24 hours - prompt to input timezone
         """
+        if not self.ready_to_serve:
+            return
+
         if not user:
             user = ctx.author
 
