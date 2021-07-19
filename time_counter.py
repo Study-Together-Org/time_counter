@@ -293,6 +293,8 @@ class Study(commands.Cog):
     async def on_ready(self):
         await self.fetch()
         self.time_counter_logger.info(f'{utilities.get_time()} Ready: logged in as {self.bot.user}')
+        return
+
         msg = f"**\n\nI am back!** :partying_face: "
 
         for channel_id in self.command_channels:
@@ -530,7 +532,6 @@ Longest study streak: {longestStreak}
 
         await ctx.send(f"**Daily starts tracking at {display_timezone} {display_timepoint}**")
         await ctx.send(embed=emb)
-        await ctx.send(f"**Visit <https://app.studytogether.com/users/{user_id}> for more details.**")
         await self.update_roles(user)
 
     @commands.has_any_role(utilities.get_role_id("staff"), utilities.get_role_id("dev"))
@@ -615,6 +616,8 @@ def setup(bot):
 class CustomBot(commands.Bot):
     # Overwrite default Bot to get signal handling power
     async def close(self):
+        return
+
         command_channels = utilities.config["command_channels"]
         announcement_channel = utilities.config["announcement_channel"]
         msg = f"\n\nSome staff member just restarted me.\nDetails (about new features? :heart_eyes_cat:) might be posted in <#{announcement_channel}>).\n**I will send a message here when I am back again (soon).** :wave:"
