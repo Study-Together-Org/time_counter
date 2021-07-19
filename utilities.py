@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from faker import Faker
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy_utils import database_exists, create_database
 
 # scripts that import this one will assume the following statement is run
 load_dotenv(f"{os.getenv('STUDY_TOGETHER_MODE')}.env")
@@ -84,9 +85,14 @@ def recreate_db(Base):
 
 
 def get_engine(echo=False):
-    return create_engine(
+    engine = create_engine(
         f'mysql+pymysql://{os.getenv("sql_user")}:{os.getenv("sql_password")}@{os.getenv("sql_host")}/{os.getenv("sql_database")}',
         echo=echo)
+
+    if not database_exists(engine.url):
+        create_database(engine.url)
+
+    return engine
 
 
 def get_timezone_session():
