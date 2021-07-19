@@ -42,7 +42,6 @@ class Study(commands.Cog):
         Session = sessionmaker(bind=engine)
         self.sqlalchemy_session = Session()
         self.timezone_session = utilities.get_timezone_session()
-        self.make_heartbeat.start()
         self.birthtime = utilities.get_time()
 
     async def ready_check(self):
