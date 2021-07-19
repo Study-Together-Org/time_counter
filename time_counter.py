@@ -31,6 +31,7 @@ class Study(commands.Cog):
         self.role_name_to_obj = None
         self.role_name_to_info = None
         self.supporter_role = None
+        self.ready_to_serve = False
 
         self.command_channels = utilities.config["command_channels"]
         self.announcement_channel = utilities.config["announcement_channel"]
@@ -48,6 +49,9 @@ class Study(commands.Cog):
         if not self.bot.is_ready():
             await self.bot.wait_until_ready()
 
+        while not self.ready_to_serve:
+            await asyncio.sleep(5)
+
     async def fetch(self):
         """
         Get discord server objects and info from its api
@@ -61,6 +65,7 @@ class Study(commands.Cog):
         self.role_name_to_obj = {role.name: role for role in self.guild.roles}
         # supporter_role is a role for people who have denoted money
         self.supporter_role = utilities.config["other_roles"]["supporter"]
+        self.ready_to_serve = True
 
     async def get_discord_name(self, user_id):
         # In test mode, we might have fake data with fake ids. It is necessary to generate fake user info as well.
