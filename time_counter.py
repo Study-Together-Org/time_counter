@@ -232,6 +232,9 @@ class Study(commands.Cog):
 
     async def add_streak(self, user_id, reset=False):
         user = self.sqlalchemy_session.query(User).filter(User.id == user_id).first()
+        if not user:
+            return
+
         if reset:
             user.current_streak = 0
         else:
