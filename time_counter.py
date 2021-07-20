@@ -530,7 +530,6 @@ Longest study streak: {longestStreak}
 
         await ctx.send(f"**Daily starts tracking at {display_timezone} {display_timepoint}**")
         await ctx.send(embed=emb)
-        await ctx.send(f"**Visit <https://app.studytogether.com/users/{user_id}> for more details.**")
         await self.update_roles(user)
 
     @commands.has_any_role(utilities.get_role_id("staff"), utilities.get_role_id("dev"))
@@ -603,7 +602,7 @@ def setup(bot):
             return True
         else:
             m = await ctx.send(
-                f"{ctx.author.mention} Please use that command in <#666352633342197760> or <#695434541233602621>.")
+                f"{ctx.author.mention} Please use that command in any or these channels: {' '.join([channel.mention for channel in command_channels])}.")
             await asyncio.sleep(10)
             await ctx.message.delete()
             await m.delete()
