@@ -378,6 +378,8 @@ class Study(commands.Cog):
         if time_to_next_role:
             text += f"**Role promotion in:** ``{(str(time_to_next_role) + 'h')}``"
 
+        text += "\n\n" + utilities.config["promotion"]
+
         emb = discord.Embed(title=utilities.config["embed_titles"]["p"], description=text)
         await ctx.send(embed=emb)
 
@@ -444,6 +446,7 @@ class Study(commands.Cog):
             style = "**" if user and person["discord_user_id"] == user.id else ""
             text += f'`{(person["rank"] or 0):>5}.` {style}{person["study_time"]:{width}.{num_dec}f} h {name}{style}\n'
 
+        text += "\n" + utilities.config["promotion"]
         lb_embed = discord.Embed(title=f'{utilities.config["embed_titles"]["lb"]} ({utilities.get_month()})',
                                  description=text)
 
@@ -523,8 +526,8 @@ Average/day ({utilities.get_month()}): {average_per_day} h
 Current study streak: {currentStreak}
 Longest study streak: {longestStreak}
 ```
+{utilities.config["promotion"]}
         """
-
         emb = discord.Embed(
             description=text)
         foot = name
@@ -574,7 +577,10 @@ Longest study streak: {longestStreak}
             self.redis_client.zadd(dataset_name, {user_id: val})
 
         # update roles
-        await ctx.send(f"user_id: {user_id}, dataset_name: {dataset_name}\nval: {val}")
+        text = f"user_id: {user_id}, dataset_name: {dataset_name}\nval: {val}"
+        text += "\n" + utilities.config["promotion"]
+
+        await ctx.send(text)
         await self.update_roles(user=user)
 
     @commands.has_role(utilities.get_role_id("dev"))
@@ -610,7 +616,7 @@ def setup(bot):
             return True
         else:
             m = await ctx.send(
-                f"{ctx.author.mention} Please use that command in any or these channels: {' '.join([channel.mention for channel in command_channels])}.")
+                f"{ctx.author.mention} Please use that command in any or these channels: {' '.join(['<#' + channel + '>' for channel in command_channels])}.")
             await asyncio.sleep(10)
             await ctx.message.delete()
             await m.delete()
@@ -638,7 +644,9 @@ class CustomBot(commands.Bot):
 
 if __name__ == '__main__':
     prefixes = utilities.config["prefixes"]
+    text = "Your study statistics and rankings"
+    text += "\n\n" + utilities.config["promotion"].replace("[", "").replace("]", "").replace("(", " ").replace(")", "")
     client = CustomBot(command_prefix=prefixes, intents=Intents.all(),
-                       description="Your study statistics and rankings")
+                       description=text)
     client.load_extension('time_counter')
     client.run(os.getenv('bot_token'))

@@ -39,12 +39,15 @@ async def get_or_create(session, model, **kwargs):
 description = f"""
 A bot that manages your timezone
 
+{utilities.config["promotion"].replace("[", "").replace("]", "").replace("(", " ").replace(")", "")}
+    
 Typical usage:
 1. Know the 2-letter code for your country. 
 You may get it from https://gist.github.com/Zackhardtoname/c2a01465ac25eec17038c6e871be17ef
 2. Get available timezones in your country with .tzlist your_code (example: .tzlist US)
 3. Set it with .tzset one_of_the_timezones (example: .tzset America/New_York)
 (4. Check it with .tzget and .time)
+
 """
 timezone_bot = commands.Bot(command_prefix=utilities.config['timezone_prefix'], description=description)
 
@@ -60,7 +63,10 @@ async def set_zone(ctx, *, timezone):
     user_zone.zone = zone
     session.commit()
 
-    await ctx.send("Set your time zone to **%s**" % zone)
+    text = "Set your time zone to **%s**" % zone
+    text += "\n\n" + utilities.config["promotion"]
+
+    await ctx.send(embed=discord.Embed(description=text))
 
 
 async def query_zone(user: discord.Member):
@@ -97,35 +103,39 @@ async def info_error(ctx, error):
 async def get_zone(ctx, users: commands.Greedy[discord.Member]):
     if len(users) == 0:
         users = [ctx.author]
-
-    await ctx.send('\n'.join([
+    text = '\n'.join([
         '%s: **%s**' % (user.nick or user.name,
                         await query_zone(user))
         for user in set(users)
-    ]))
+    ])
+    text += "\n\n" + utilities.config["promotion"]
+
+    await ctx.send(embed=discord.Embed(description=text))
 
 
 @timezone_bot.command(name='time')
 async def get_time(ctx, users: commands.Greedy[discord.Member]):
     if len(users) == 0:
         users = [ctx.author]
-
-    await ctx.send('\n'.join([
+    text = '\n'.join([
         '%s: **%s**' % (user.nick or user.name,
                         await get_zone_time(await query_zone(user)))
         for user in set(users)
-    ]))
+    ])
+    text += "\n\n" + utilities.config["promotion"]
+    
+    await ctx.send(embed=discord.Embed(description=text))
 
 
 @timezone_bot.command(name='tzlist', help='Get a list of available timezones')
 async def get_tzlist(ctx, country=None):
     if country != None and len(country) == 2:
-        await ctx.send(
-            f'Available timezones for {pytz.country_names[country.upper()]} are:\n{", ".join(pytz.country_timezones[country.upper()])}')
+        text = f'Available timezones for {pytz.country_names[country.upper()]} are:\n{", ".join(pytz.country_timezones[country.upper()])}'
     else:
-        await ctx.send(
-            'Please specify this command with a two letter country code. [List available here](https://gist.github.com/pamelafox/986163)')
-
+        text = 'Please specify this command with a two letter country code. [List available here](https://gist.github.com/pamelafox/986163)'
+    text += "\n\n" + utilities.config["promotion"]
+    
+    await ctx.send(embed=discord.Embed(description=text))
 
 if __name__ == '__main__':
     timezone_bot.run(os.getenv("timezone_token"))
