@@ -610,7 +610,7 @@ def setup(bot):
             return True
         else:
             m = await ctx.send(
-                f"{ctx.author.mention} Please use that command in <#666352633342197760> or <#695434541233602621>.")
+                f"{ctx.author.mention} Please use that command in any or these channels: {' '.join([channel.mention for channel in command_channels])}.")
             await asyncio.sleep(10)
             await ctx.message.delete()
             await m.delete()
