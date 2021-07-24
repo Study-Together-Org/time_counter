@@ -80,12 +80,12 @@ class Study(commands.Cog):
     async def update_roles(self, user: discord.Member):
         user_id = user.id
         rank_categories = utilities.get_rank_categories()
-        hours_cur_month = await utilities.get_redis_score(self.redis_client, rank_categories["monthly"], user_id)
+        hours_cur_period = await utilities.get_redis_score(self.redis_client, rank_categories["monthly"], user_id)
 
-        if not hours_cur_month:
-            hours_cur_month = 0
+        if not hours_cur_period:
+            hours_cur_period = 0
         pre_role, cur_role, next_role, time_to_next_role = utilities.get_role_status(self.role_name_to_info,
-                                                                                     hours_cur_month)
+                                                                                     hours_cur_period)
 
         # not fetching the actual role to save an api call
         role_to_add_id = int(cur_role["mention"][3:-1]) if cur_role else None
