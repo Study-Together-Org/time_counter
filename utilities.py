@@ -87,7 +87,7 @@ def recreate_db(Base):
 def get_engine(echo=False):
     engine = create_engine(
         f'mysql+pymysql://{os.getenv("sql_user")}:{os.getenv("sql_password")}@{os.getenv("sql_host")}/{os.getenv("sql_database")}',
-        echo=echo)
+        echo=echo, pool_pre_ping=True)
 
     if not database_exists(engine.url):
         create_database(engine.url)
