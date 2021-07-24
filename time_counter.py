@@ -590,8 +590,7 @@ Longest study streak: {longestStreak}
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, exception):
-        # avoid logging unfound commands
-        pass
+        print(utilities.get_time(), exception)
 
     @commands.Cog.listener()
     async def on_guild_unavailable(self, guild):
