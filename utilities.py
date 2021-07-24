@@ -203,7 +203,7 @@ async def get_user_timeinfo(ctx, user, timepoint):
 
     if user_timezone == "Not set":
         await ctx.send(
-            f"**You can set a time zone by following `.help`**")
+            f"**You can set a time zone by following `{config['timezone_prefix']}help`**")
         user_timezone = config["business"]["timezone"]
 
     zone_obj = ZoneInfo(user_timezone)
