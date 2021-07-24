@@ -12,6 +12,7 @@ from sqlalchemy.ext.declarative import declarative_base
 
 import utilities
 
+prefix = utilities.config['timezone_prefix']
 session = utilities.get_timezone_session()
 Base = declarative_base()
 
@@ -44,12 +45,12 @@ A bot that manages your timezone
 Typical usage:
 1. Know the 2-letter code for your country. 
 You may get it from https://gist.github.com/Zackhardtoname/c2a01465ac25eec17038c6e871be17ef
-2. Get available timezones in your country with .tzlist your_code (example: .tzlist US)
-3. Set it with .tzset one_of_the_timezones (example: .tzset America/New_York)
-(4. Check it with .tzget and .time)
+2. Get available timezones in your country with {prefix}tzlist your_code (example: {prefix}tzlist US)
+3. Set it with {prefix}tzset one_of_the_timezones (example: {prefix}tzset America/New_York)
+(4. Check it with {prefix}tzget and {prefix}time)
 
 """
-timezone_bot = commands.Bot(command_prefix=utilities.config['timezone_prefix'], description=description)
+timezone_bot = commands.Bot(command_prefix=prefix, description=description)
 
 
 @timezone_bot.command(name='tzset')

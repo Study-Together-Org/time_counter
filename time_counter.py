@@ -347,12 +347,12 @@ class Study(commands.Cog):
     @commands.command(aliases=["P", "rank"])
     async def p(self, ctx, user: discord.Member = None):
         """
-        Displays your role placement for this month (use '~help p' to see more)
+        Displays your role placement for this month (use '-help p' to see more)
 
-        examples: '~p'
+        examples: '-p'
 
         To specify a user
-        examples: '~p @chooseyourfriend'
+        examples: '-p @chooseyourfriend'
         """
         if not self.ready_to_serve:
             return
@@ -386,21 +386,21 @@ class Study(commands.Cog):
     @commands.command(aliases=["LB", "top", "l", "L"])
     async def lb(self, ctx, timepoint=None, page: int = -1, user: discord.Member = None):
         """
-        Displays statistics for people with similar studytime (use '~help lb' to see more)
+        Displays statistics for people with similar studytime (use '-help lb' to see more)
         By default the ranking is monthly, you can specify a start time (in the last 24 hours).
-        Currently, the available starting points are hours. If we include half past hours, '~lb 10:14' will become '~lb 10:30'
+        Currently, the available starting points are hours. If we include half past hours, '-lb 10:14' will become '-lb 10:30'
 
         To specify a starting time, use any of the following formats mentioned in "-help me"
-        examples: '~lb 9' or '~lb 9pm'
+        examples: '-lb 9' or '-lb 9pm'
 
         To specify a page, specify the page number where each page has 10 members; use '-' as a placeholder to get monthly ranking
-        examples: '~lb 9 2' or '~lb - 3'
+        examples: '-lb 9 2' or '-lb - 3'
         
         To specify a time and a user, use '-1' as a placeholder for page
-        examples: '~lb 9 -1 @chooseyourfriend'
+        examples: '-lb 9 -1 @chooseyourfriend'
 
         To specify a user, also use '-' as a placeholder to get monthly ranking
-        examples: '~lb - -1 @chooseyourfriend'
+        examples: '-lb - -1 @chooseyourfriend'
 
         Note the weekly time resets on Monday GMT+0 5pm and the monthly time 1st day of the month 5pm
         """
@@ -450,7 +450,7 @@ class Study(commands.Cog):
         lb_embed = discord.Embed(title=f'{utilities.config["embed_titles"]["lb"]} ({utilities.get_month()})',
                                  description=text)
 
-        lb_embed.set_footer(text=f"Type ~help lb to see how to go to other pages")
+        lb_embed.set_footer(text=f"Type -help lb to see how to go to other pages")
         await ctx.send(embed=lb_embed)
         await self.update_roles(user)
 
@@ -462,7 +462,7 @@ class Study(commands.Cog):
     @commands.command(aliases=["ME", "m", "M"])
     async def me(self, ctx, timepoint=None, user: discord.Member = None):
         """
-        Displays statistics for your studytime (use '~help me' to see more)
+        Displays statistics for your studytime (use '-help me' to see more)
         By default the daily time is last 24 hours, but you can specify a starting hour (in the last 24 hours)
 
         To specify a starting time, use any of the following formats "%Ham, "%Hpm", "%hAM", "%hPM", "%H", "%h"
@@ -547,7 +547,7 @@ Longest study streak: {longestStreak}
     @commands.command(aliases=["CHANGE", "c", "C"])
     async def change(self, ctx, dataset_name, val: float, user: discord.Member):
         """
-        Changes users' hours (use '~help change' to see more)
+        Changes users' hours (use '-help change' to see more)
         Only streak data and zset data types are supported ("longest_streak", "current_streak", "all_time" and "monthly_*")
         
         example: '-c current_streak 21 @target_user' changes the current_streak data to be 21 and update the longest_streak if sensible
