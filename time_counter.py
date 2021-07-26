@@ -615,7 +615,7 @@ def setup(bot):
             return True
         else:
             m = await ctx.send(
-                f"{ctx.author.mention} Please use that command in any or these channels: {' '.join(['<#' + channel + '>' for channel in command_channels])}.")
+                f"{ctx.author.mention} Please use that command in any or these channels: {' '.join(['<#' + str(channel) + '>' for channel in command_channels])}.")
             await asyncio.sleep(10)
             await ctx.message.delete()
             await m.delete()
@@ -627,8 +627,6 @@ def setup(bot):
 class CustomBot(commands.Bot):
     # Overwrite default Bot to get signal handling power
     async def close(self):
-        return
-
         command_channels = utilities.config["command_channels"]
         announcement_channel = utilities.config["announcement_channel"]
         msg = f"\n\nSome staff member just restarted me.\nDetails (about new features? :heart_eyes_cat:) might be posted in <#{announcement_channel}>).\n**I will send a message here when I am back again (soon).** :wave:"
